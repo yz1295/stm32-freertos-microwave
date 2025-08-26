@@ -1,0 +1,197 @@
+#include "console.h"
+#include "gui.h"      // LCD_ShowChar, LCD_Width, LCD_Height, POINT_COLOR, BACK_COLOR
+
+/* ===== Configuration ===== */
+#ifndef CONSOLE_TAB_SIZE
+#define CONSOLE_TAB_SIZE 4
+#endif
+
+/* If you cannot do pixel scrolling, simplest behavior is "clear page when full" */
+#ifndef CONSOLE_CLEAR_ON_FULL
+#define CONSOLE_CLEAR_ON_FULL 1
+#endif
+
+/* ===== State ===== */
+static uint16_t scr_w = 0, scr_h = 0;      /* in pixels */
+static uint8_t  cell_w = 8, cell_h = 16;   /* font cell size (defaults to 8x16) */
+static uint16_t cols = 0, rows = 0;        /* text grid dimensions */
+static uint16_t cur_c = 0, cur_r = 0;      /* cursor in cells */
+static uint16_t fg_col = 0xFFFF, bg_col = 0x0000; /* white on black by default */
+
+/* ===== Internals ===== */
+static inline void _compute_grid(void)
+{
+    if (scr_w == 0) scr_w = LCD_Width();
+    if (scr_h == 0) scr_h = LCD_Height();
+    if (cell_w == 0) cell_w = 8;
+    if (cell_h == 0) cell_h = 16;
+    cols = (uint16_t)(scr_w / cell_w);
+    rows = (uint16_t)(scr_h / cell_h);
+    if (cols == 0) cols = 1;
+    if (rows == 0) rows = 1;
+    if (cur_c >= cols) cur_c = 0;
+    if (cur_r >= rows) cur_r = (uint16_t)(rows - 1);
+}
+
+static void _new_line(void)
+{
+    cur_c = 0;
+    cur_r++;
+#if CONSOLE_CLEAR_ON_FULL
+    if (cur_r >= rows) {
+        Console_Clear();     /* simplest behavior */
+    }
+#else
+    if (cur_r >= rows) {
+        /* TODO: implement real scrolling if your LCD has a hardware scroll register.
+           For now, fall back to page clear: */
+        Console_Clear();
+    }
+#endif
+}
+
+static void _draw_char_cell(uint16_t c, uint16_t r, uint8_t ch)
+{
+    uint16_t x = (uint16_t)(c * cell_w);
+    uint16_t y = (uint16_t)(r * cell_h);
+    LCD_ShowChar(x, y, fg_col, bg_col, ch, cell_h, 0);  /* size == cell_h (16 now), opaque mode */
+}
+
+/* ===== Public API ===== */
+
+void Console_SetFontCell(uint8_t cw, uint8_t ch)
+{
+    cell_w = (cw == 0) ? 8 : cw;
+    cell_h = (ch == 0) ? 16 : ch;
+    _compute_grid();
+}
+
+void Console_Init(uint16_t width_px, uint16_t height_px)
+{
+    scr_w = width_px;
+    scr_h = height_px;
+    /* default colors follow GUI globals initially */
+    fg_col = POINT_COLOR;
+    bg_col = BACK_COLOR;
+    _compute_grid();
+    Console_Clear();
+}
+
+void Console_SetColors(uint16_t fg, uint16_t bg)
+{
+    fg_col = fg; bg_col = bg;
+}
+
+void Console_GetColors(uint16_t *fg, uint16_t *bg)
+{
+    if (fg) *fg = fg_col;
+    if (bg) *bg = bg_col;
+}
+
+void Console_SetCursor(uint16_t col, uint16_t row)
+{
+    _compute_grid();
+    if (col >= cols) col = (uint16_t)(cols - 1);
+    if (row >= rows) row = (uint16_t)(rows - 1);
+    cur_c = col; cur_r = row;
+}
+
+void Console_GetCursor(uint16_t *col, uint16_t *row)
+{
+    if (col) *col = cur_c;
+    if (row) *row = cur_r;
+}
+
+void Console_Clear(void)
+{
+    /* Fill the whole screen with background color and home the cursor */
+    uint16_t old_pc = POINT_COLOR, old_bc = BACK_COLOR;
+
+    POINT_COLOR = bg_col;
+    BACK_COLOR  = bg_col;
+    LCD_DrawFillRectangle(0, 0, (uint16_t)(scr_w - 1), (uint16_t)(scr_h - 1));
+
+    POINT_COLOR = old_pc;
+    BACK_COLOR  = old_bc;
+
+    cur_c = 0;
+    cur_r = 0;
+}
+
+/* Returns the character written (standard putchar contract) */
+int Console_PutChar(int ch)
+{
+    _compute_grid();
+
+    if (ch == '\r') {
+        /* CR: go to column 0, same row */
+        cur_c = 0;
+        return ch;
+    }
+    if (ch == '\n') {
+        /* LF: new line */
+        _new_line();
+        return ch;
+    }
+    if (ch == '\t') {
+        /* TAB: advance to next tab stop */
+        uint16_t next = (uint16_t)(((cur_c / CONSOLE_TAB_SIZE) + 1) * CONSOLE_TAB_SIZE);
+        if (next >= cols) {
+            _new_line();
+        } else {
+            /* paint spaces until next tab stop */
+            while (cur_c < next) {
+                _draw_char_cell(cur_c, cur_r, ' ');
+                cur_c++;
+            }
+        }
+        return ch;
+    }
+    if (ch == '\b') {
+        /* backspace: move back and overwrite with space */
+        if (cur_c > 0) {
+            cur_c--;
+            _draw_char_cell(cur_c, cur_r, ' ');
+        }
+        return ch;
+    }
+
+    /* Printable range: draw */
+    if (ch >= 32 && ch <= 126) {
+        _draw_char_cell(cur_c, cur_r, (uint8_t)ch);
+        cur_c++;
+        if (cur_c >= cols) {
+            _new_line();
+        }
+        return ch;
+    }
+
+    /* Non-printable: show as placeholder (.) */
+    _draw_char_cell(cur_c, cur_r, '.');
+    cur_c++;
+    if (cur_c >= cols) _new_line();
+    return ch;
+}
+
+void Console_Puts(const char *s)
+{
+    while (*s) {
+        Console_PutChar((unsigned char)*s++);
+    }
+}
+
+/* ===== Retarget libc to console =====
+   STM32Cube HAL typically calls __io_putchar from printf()
+*/
+int __io_putchar(int ch)
+{
+    return Console_PutChar(ch);
+}
+
+/* Also provide putchar() explicitly (useful with some libs) */
+int putchar(int ch)
+{
+    return Console_PutChar(ch);
+}
+
+

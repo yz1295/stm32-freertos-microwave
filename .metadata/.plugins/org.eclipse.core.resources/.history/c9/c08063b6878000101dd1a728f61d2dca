@@ -1,0 +1,91 @@
+/**
+  ******************************************************************************
+  * @file    font.h
+  * @author  Yiran Zhang
+  * @brief   Font tables and prototypes for ASCII/Chinese characters
+  * @details Provides access to bitmap font data for displaying text
+  *          on TFT LCD modules. Supports ASCII (6x12, 8x16) and
+  *          Chinese fonts (16x16, 24x24, 32x32).
+  * @note    ASCII tables are always available.
+  *          Chinese tables require GB2312/GBK encoding and may be empty
+  *          if not used.
+  * @github  https://github.com/yz1295
+  ******************************************************************************
+  */
+
+#ifndef __FONT_H
+#define __FONT_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* ===== ASCII fonts (bitmaps) ===== */
+extern const unsigned char asc2_1206[95][12];  /* 6x12 ASCII (from ' ' .. '~') */
+extern const unsigned char asc2_1608[95][16];  /* 8x16 ASCII (from ' ' .. '~') */
+
+/* ===== Chinese font glyph records (GB) =====
+ * Index[2] is the 2-byte character index; Msk[] is the bitmap.
+ * Keep exactly one typedef for each size.
+ */
+typedef struct { unsigned char Index[2]; char Msk[32];  } typFNT_GB16;  /* 16x16 */
+typedef struct { unsigned char Index[2]; char Msk[72];  } typFNT_GB24;  /* 24x24 */
+typedef struct { unsigned char Index[2]; char Msk[128]; } typFNT_GB32;  /* 32x32 */
+
+/* ===== Chinese font tables (defined in font.c) ===== */
+extern const typFNT_GB16 tfont16[];
+extern const typFNT_GB24 tfont24[];
+extern const typFNT_GB32 tfont32[];
+
+/* Element counts for the above tables. Use these instead of sizeof(). */
+extern const uint32_t tfont16_count;
+extern const uint32_t tfont24_count;
+extern const uint32_t tfont32_count;
+
+
+/* --------------------------------------------------------------------------
+ * Function Prototypes
+ * --------------------------------------------------------------------------*/
+
+/**
+ * @brief  Get pointer to 6x12 ASCII bitmap
+ * @param  c ASCII character (32–126)
+ * @return Pointer to 12-byte bitmap
+ */
+const uint8_t* FONT_GetASCIIFont6x12(char c);
+
+/**
+ * @brief  Get pointer to 8x16 ASCII bitmap
+ * @param  c ASCII character (32–126)
+ * @return Pointer to 16-byte bitmap
+ */
+const uint8_t* FONT_GetASCIIFont8x16(char c);
+
+/**
+ * @brief  Search for 16x16 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB16 record, or NULL if not found
+ */
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2]);
+
+/**
+ * @brief  Search for 24x24 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB24 record, or NULL if not found
+ */
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2]);
+
+/**
+ * @brief  Search for 32x32 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB32 record, or NULL if not found
+ */
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2]);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __FONT_H */

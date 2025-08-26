@@ -1,0 +1,108 @@
+#ifndef __LCD_H
+#define __LCD_H
+
+#include "main.h"
+#include <stdint.h>
+
+// ===================== User Config: LCD Resolution =====================
+#define LCD_W 128
+#define LCD_H 160
+
+// ===================== User Config: Pin Mapping ========================
+// SCK  -> PA5 (SPI1_SCK)     MOSI -> PA7 (SPI1_MOSI)
+// CS   -> PB9                 DC   -> PB7
+// RST  -> PB8                 BL   -> PB6
+
+#define LCD_CS_GPIO_Port   GPIOB
+#define LCD_CS_Pin         GPIO_PIN_9
+
+#define LCD_DC_GPIO_Port   GPIOB
+#define LCD_DC_Pin         GPIO_PIN_7    // also called A0, RS, D/C
+
+#define LCD_RST_GPIO_Port  GPIOB
+#define LCD_RST_Pin        GPIO_PIN_8
+
+#define LCD_BL_GPIO_Port   GPIOB
+#define LCD_BL_Pin         GPIO_PIN_6
+
+// Control macros using HAL
+#define LCD_CS_CLR()  HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_RESET)
+#define LCD_CS_SET()  HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_SET)
+#define LCD_RS_CLR()  HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_RESET) // command
+#define LCD_RS_SET()  HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_SET)   // data
+#define LCD_RST_CLR() HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_RESET)
+#define LCD_RST_SET() HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_SET)
+#define LCD_LED(x)    HAL_GPIO_WritePin(LCD_BL_GPIO_Port,  LCD_BL_Pin,  (x)?GPIO_PIN_SET:GPIO_PIN_RESET)
+
+// ===================== Types =====================
+typedef struct
+{
+  uint16_t width;      // LCD width (pixels)
+  uint16_t height;     // LCD height (pixels)
+  uint16_t id;         // (unused for ST7735, keep for compatibility)
+  uint8_t  dir;        // orientation flag (0..3)
+  uint8_t  wramcmd;    // RAM write command (0x2C)
+  uint8_t  setxcmd;    // column set command (0x2A)
+  uint8_t  setycmd;    // row set command (0x2B)
+} _lcd_dev;
+
+extern _lcd_dev  lcddev;
+extern uint16_t  POINT_COLOR;   // default black
+extern uint16_t  BACK_COLOR;    // default white
+
+// ===================== Color Definitions (RGB565) =====================
+#define WHITE       0xFFFF
+#define BLACK       0x0000
+#define BLUE        0x001F
+#define BRED        0xF81F
+#define GRED        0xFFE0
+#define GBLUE       0x07FF
+#define RED         0xF800
+#define MAGENTA     0xF81F
+#define GREEN       0x07E0
+#define CYAN        0x7FFF
+#define YELLOW      0xFFE0
+#define BROWN       0xBC40
+#define BRRED       0xFC07
+#define GRAY        0x8430
+#define DARKBLUE    0x01CF
+#define LIGHTBLUE   0x7D7C
+#define GRAYBLUE    0x5458
+#define LIGHTGREEN  0x841F
+#define LIGHTGRAY   0xEF5B
+#define LGRAY       0xC618
+#define LGRAYBLUE   0xA651
+#define LBBLUE      0x2B12
+
+// ===================== Orientation =====================
+#define USE_HORIZONTAL 0   // 0:0°, 1:90°, 2:180°, 3:270°
+
+// ===================== Public API =====================
+// Init & GPIO
+void LCD_Init(void);
+void LCD_GPIOInit(void);   // optional if you do pins in MX_GPIO_Init
+void LCD_RESET(void);
+
+// Basics
+void LCD_Clear(uint16_t color);
+void LCD_SetCursor(uint16_t x, uint16_t y);
+void LCD_SetWindows(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye);
+void LCD_DrawPoint(uint16_t x, uint16_t y);
+void LCD_direction(uint8_t direction);
+
+// Low-level write helpers
+void LCD_WR_REG(uint8_t cmd);
+void LCD_WR_DATA(uint8_t data);
+void LCD_WriteReg(uint8_t reg, uint16_t val);
+void LCD_WriteRAM_Prepare(void);
+void Lcd_WriteData_16Bit(uint16_t data);
+
+// Optional stubs (implement later if needed)
+static inline void LCD_DisplayOn(void)  { /* backlight already controlled via LCD_LED */ }
+static inline void LCD_DisplayOff(void) { /* turn off backlight if you want: LCD_LED(0); */ }
+
+//debug mode macro
+#define LCD_DEBUG_MODE  1   // 1 = no hardware, use printf
+
+
+#endif /* __LCD_H */

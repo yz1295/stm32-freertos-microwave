@@ -1,0 +1,51 @@
+#ifndef __LCD_H
+#define __LCD_H
+
+#include "stm32f4xx_hal.h"
+#include "main.h"      // uses CubeMX-generated pin macros: LCD_CS_Pin, LCD_CS_GPIO_Port, etc.
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ----- Panel size -----
+#define ST7735_WIDTH   128
+#define ST7735_HEIGHT  160
+
+#define ST7735_XSTART 2
+#define ST7735_YSTART 1
+
+// Some boards need small offsets. Start with 0/0; if your image is shifted,
+// try X=2 Y=1 (common on some “black tab” boards).
+#ifndef ST7735_XSTART
+#define ST7735_XSTART  0
+#endif
+#ifndef ST7735_YSTART
+#define ST7735_YSTART  0
+#endif
+
+// 16-bit RGB565 helpers
+#define RGB565(r,g,b)  ( ((r&0x1F)<<11) | ((g&0x3F)<<5) | (b&0x1F) )
+#define WHITE   0xFFFF
+#define BLACK   0x0000
+#define RED     0xF800
+#define GREEN   0x07E0
+#define BLUE    0x001F
+#define YELLOW  0xFFE0
+#define CYAN    0x07FF
+#define MAGENTA 0xF81F
+#define GRAY    0x8430
+
+// API
+void LCD_Init(void);
+void LCD_SetRotation(uint8_t rot);                // 0..3
+void LCD_Clear(uint16_t color);
+void LCD_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
+void LCD_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+

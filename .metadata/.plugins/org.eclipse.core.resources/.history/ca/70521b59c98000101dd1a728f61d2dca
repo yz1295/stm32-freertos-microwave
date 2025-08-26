@@ -1,0 +1,52 @@
+/**
+  ******************************************************************************
+  * @file    font.h
+  * @brief   Font tables and prototypes for ASCII/Chinese characters
+  * @note    Call Font_Init() once after LCD init. It builds:
+  *          - asc2_1608[95][16]  (8x16 ASCII for ' '..'~')
+  *          - asc2_1206[95][12]  (6x12 cropped from 8x16)
+  ******************************************************************************/
+#ifndef __FONT_H
+#define __FONT_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Runtime-built ASCII bitmaps (indices 0..94 == ASCII 32..126) */
+extern uint8_t asc2_1206[95][12];  /* 6x12 ASCII */
+extern uint8_t asc2_1608[95][16];  /* 8x16 ASCII */
+
+/* Chinese font glyph records (optional; leave empty if unused) */
+typedef struct { uint8_t Index[2]; char Msk[32];  } typFNT_GB16;  /* 16x16 */
+typedef struct { uint8_t Index[2]; char Msk[72];  } typFNT_GB24;  /* 24x24 */
+typedef struct { uint8_t Index[2]; char Msk[128]; } typFNT_GB32;  /* 32x32 */
+
+extern const typFNT_GB16 tfont16[];
+extern const typFNT_GB24 tfont24[];
+extern const typFNT_GB32 tfont32[];
+extern const uint32_t    tfont16_count;
+extern const uint32_t    tfont24_count;
+extern const uint32_t    tfont32_count;
+
+/* Build ASCII tables from the master 8x16 font (call once after LCD init) */
+void Font_Init(void);
+
+/* Getters used by your GUI code */
+const uint8_t* FONT_GetASCIIFont6x12(char c);  /* returns asc2_1206[c-32] or NULL */
+const uint8_t* FONT_GetASCIIFont8x16(char c);  /* returns asc2_1608[c-32] or NULL */
+
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2]);
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2]);
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2]);
+
+//test
+extern const uint32_t    tfont16_count;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __FONT_H */

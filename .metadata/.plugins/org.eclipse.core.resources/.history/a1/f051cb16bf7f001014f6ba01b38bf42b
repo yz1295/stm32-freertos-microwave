@@ -1,0 +1,25 @@
+#include "stm32f4xx_hal.h"
+#include "delay.h"
+
+void delay_init(void)
+{
+    /* Enable trace */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+
+    /* Some MCUs have DWT->LAR; F407 doesn't. Guard it. */
+    #ifdef DWT_LAR
+    DWT->LAR = 0xC5ACCE55;  // unlock if present
+    #endif
+
+    /* Reset and enable the cycle counter */
+    DWT->CYCCNT = 0;
+    DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void delay_us(uint32_t us)
+{
+    uint32_t start  = DWT->CYCCNT;
+    uint32_t cycles = (SystemCoreClock / 1000000U) * us;
+    while ((DWT->CYCCNT - start) < cycles) { __NOP(); }
+}
+

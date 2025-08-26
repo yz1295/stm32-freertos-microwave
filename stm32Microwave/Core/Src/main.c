@@ -18,19 +18,33 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
+#include "dma.h"
+#include "spi.h"
+#include "tim.h"
+#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "led.h"
+#include "lcd.h"
+#include "beep.h"
+#include "delay.h"
+#include "stm32f4xx_hal.h"
+
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+Beep_HandleTypeDef hbeep;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 
 /* USER CODE END PD */
 
@@ -43,10 +57,17 @@
 
 /* USER CODE BEGIN PV */
 
+//
+led_d LED_GREEN;   // PD12
+led_d LED_ORANGE;  // PD13
+led_d LED_RED;     // PD14
+led_d LED_BLUE;    // PD15
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -84,9 +105,75 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART2_UART_Init();
+  MX_SPI1_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 4, 0);  // override it, make DMA=4
+
+  // --- test LCD BSP ---
+
+  //USART2 test
+  printf("Hello from STM32F407!\r\n");
+  printf("System running at %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
+
+
+
+  //TFT display test
+  /*LCD_Init();
+  LCD_SetRotation(0);
+  LCD_Backlight_On();
+
+  Font_Init();     // builds asc2_1206 / asc2_1608 from font8x16.h
+
+  run_lcd_probe();
+  HAL_Delay(1500);
+  run_text_ascii();
+  HAL_Delay(1500);
+  run_text_cn();
+  Beep_Init(&hbeep, GPIOB, GPIO_PIN_15, GPIO_PIN_SET); // active-high
+  Beep_Beep(&hbeep, 3, 200, 200); // three short beeps
+
+  //buzzer test
+  Beep_On(&hbeep);
+  delay_ms(500);
+  Beep_Off(&hbeep);
+  delay_ms(500);8/
+
+  //led test
+  /* Init four on-board LEDs */
+      LED_Init(&LED_GREEN,  GPIOD, GPIO_PIN_12);
+      LED_Init(&LED_ORANGE, GPIOD, GPIO_PIN_13);
+      LED_Init(&LED_RED,    GPIOD, GPIO_PIN_14);
+      LED_Init(&LED_BLUE,   GPIOD, GPIO_PIN_15);
+
+      /* Simple test */
+      led_on(&LED_GREEN);
+      HAL_Delay(2000);
+      led_on(&LED_ORANGE);
+      HAL_Delay(2000);
+      led_toggle(&LED_BLUE);
+      HAL_Delay(2000);
+      led_toggle(&LED_RED);
+
+
+
+
+
+
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
+  MX_FREERTOS_Init();
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -119,7 +206,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 64;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -129,8 +221,8 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV4;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
@@ -143,6 +235,28 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

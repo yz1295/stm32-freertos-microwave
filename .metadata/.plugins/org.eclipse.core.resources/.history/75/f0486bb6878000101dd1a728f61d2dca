@@ -1,0 +1,131 @@
+/**
+  ******************************************************************************
+  * @file    font.c
+  * @author  Yiran Zhang
+  * @brief   Font table lookups for ASCII and Chinese glyphs
+  * @github  https://github.com/yz1295
+  ******************************************************************************
+  */
+
+#include "font.h"
+
+#include "font8x16.h"
+
+#include <stddef.h>   // NULL
+#include <string.h>   // memcmp
+
+/* ============================================================
+ * ASCII bitmaps — definitions
+ * (These are the ones you already had. Kept verbatim.)
+ * ============================================================ */
+
+const unsigned char asc2_1206[95][12] = {
+    /* paste of your original asc2_1206 from old font.h */
+    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},/*" ",0*/
+    {0x00,0x00,0x04,0x04,0x04,0x04,0x04,0x04,0x00,0x04,0x00,0x00},/*"!",1*/
+    /* ... keep the rest exactly as in your old file ... */
+};
+
+const unsigned char asc2_1608[95][16];
+void Font_Init(void) {
+    for (int c = 32; c <= 126; c++) {
+        for (int row = 0; row < 16; row++) {
+            asc2_1608[c - 32][row] = font8x16[c][row];
+        }
+    }
+}
+/* ============================================================
+ * Chinese fonts — definitions
+ * If you only need English, you can keep these empty and the
+ * GUI Chinese routines will simply do nothing.
+ * To enable Chinese, paste your original tfont16/tfont24/tfont32
+ * arrays (with their glyph data) here and set the *_count below.
+ * ============================================================ */
+
+const typFNT_GB16 tfont16[] = {
+    /* Empty for English-only build.
+       If you need Chinese, paste entries like:
+       { "深", { 0x00,0x00, ... 32 bytes ... } }, ... */
+};
+
+const typFNT_GB24 tfont24[] = {
+    /* Empty for English-only build. */
+};
+
+const typFNT_GB32 tfont32[] = {
+    /* Empty for English-only build. */
+};
+
+/* ===== element counts (use these in code instead of sizeof on incomplete types) */
+const uint32_t tfont16_count = (uint32_t)(sizeof(tfont16) / sizeof(tfont16[0])); /* 0 for English-only */
+const uint32_t tfont24_count = (uint32_t)(sizeof(tfont24) / sizeof(tfont24[0])); /* 0 for English-only */
+const uint32_t tfont32_count = (uint32_t)(sizeof(tfont32) / sizeof(tfont32[0])); /* 0 for English-only */
+/* --------------------------------------------------------------------------
+ * Internal helpers
+ * --------------------------------------------------------------------------*/
+
+static inline int is_printable_ascii(char c) {
+    return (c >= 32 && c <= 126);
+}
+
+static inline int idx_from_ascii(char c) {
+    return (int)(c - 32);  // tables are offset by 32
+}
+
+static const void* find_glyph_2byte(const void *table,
+                                    uint32_t count,
+                                    size_t record_size,
+                                    size_t index_offset,
+                                    const uint8_t index[2])
+{
+    /* Linear search on the 2‑byte GB2312/GBK index */
+    const uint8_t *p = (const uint8_t*)table;
+    for (uint32_t i = 0; i < count; ++i, p += record_size) {
+        if (p[index_offset + 0] == index[0] &&
+            p[index_offset + 1] == index[1]) {
+            return (const void*)p;
+        }
+    }
+    return NULL;
+}
+
+/* --------------------------------------------------------------------------
+ * Public API
+ * --------------------------------------------------------------------------*/
+
+const uint8_t* FONT_GetASCIIFont6x12(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1206[idx_from_ascii(c)];
+}
+
+const uint8_t* FONT_GetASCIIFont8x16(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1608[idx_from_ascii(c)];
+}
+
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    /* typFNT_GB16: Index at offset 0, record size = sizeof(typFNT_GB16) */
+    return (const typFNT_GB16*)find_glyph_2byte(
+        tfont16, tfont16_count, sizeof(typFNT_GB16), 0, index
+    );
+}
+
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB24*)find_glyph_2byte(
+        tfont24, tfont24_count, sizeof(typFNT_GB24), 0, index
+    );
+}
+
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB32*)find_glyph_2byte(
+        tfont32, tfont32_count, sizeof(typFNT_GB32), 0, index
+    );
+}

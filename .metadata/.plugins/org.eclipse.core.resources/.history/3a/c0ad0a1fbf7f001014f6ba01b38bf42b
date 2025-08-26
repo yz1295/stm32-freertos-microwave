@@ -1,0 +1,11 @@
+#ifndef DELAY_H
+#define DELAY_H
+
+#include "stm32f4xx_hal.h"
+#include <stdint.h>
+
+void delay_init(void);            // enable DWT cycle counter
+void delay_us(uint32_t us);       // busy-wait in microseconds
+static inline void delay_ms(uint32_t ms) { HAL_Delay(ms); } // use HAL
+
+#endif

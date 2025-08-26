@@ -1,0 +1,9 @@
+../Core/Src/font.c:27:19:is_printable_ascii	16	static
+../Core/Src/font.c:28:19:idx_from_ascii	16	static
+../Core/Src/font.c:31:6:Font_Init	24	static
+../Core/Src/font.c:50:16:FONT_GetASCIIFont6x12	16	static
+../Core/Src/font.c:55:16:FONT_GetASCIIFont8x16	16	static
+../Core/Src/font.c:62:20:find_glyph_2byte	32	static
+../Core/Src/font.c:73:20:FONT_GetChinese16	24	static
+../Core/Src/font.c:78:20:FONT_GetChinese24	24	static
+../Core/Src/font.c:83:20:FONT_GetChinese32	24	static

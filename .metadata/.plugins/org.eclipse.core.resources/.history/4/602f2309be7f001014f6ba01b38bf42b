@@ -1,0 +1,23 @@
+#include "delay.h"
+
+/* Enable DWT->CYCCNT for cycle counting (works on Cortex-M4) */
+void delay_init(void)
+{
+    /* Enable TRC */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    /* Unlock DWT if locked (some devices need this; safe to try) */
+    DWT->LAR = 0xC5ACCE55;
+    /* Reset and enable cycle counter */
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void delay_us(uint32_t us)
+{
+    uint32_t start = DWT->CYCCNT;
+    /* cycles per microsecond = SystemCoreClock / 1e6 */
+    uint32_t cycles = (SystemCoreClock / 1000000U) * us;
+    while ((DWT->CYCCNT - start) < cycles) {
+        __NOP();
+    }
+}

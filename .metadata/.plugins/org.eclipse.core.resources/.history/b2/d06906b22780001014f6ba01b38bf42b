@@ -1,0 +1,236 @@
+#include <string.h>
+#include <stdint.h>
+#include "lcd.h"
+#include "font.h"
+#include "gui.h"
+
+/* ===== Global text colors (defaults) ===== */
+uint16_t POINT_COLOR = WHITE;
+uint16_t BACK_COLOR  = BLACK;
+
+/* ===== Helpers ===== */
+static inline uint16_t clamp_w(uint16_t x){ return (x < LCD_Width())  ? x : (LCD_Width()  - 1); }
+static inline uint16_t clamp_h(uint16_t y){ return (y < LCD_Height()) ? y : (LCD_Height() - 1); }
+
+static uint32_t mypow10(uint8_t n){ uint32_t r=1; while(n--) r*=10U; return r; }
+
+/* ===== Primitives (use new LCD_* API only) ===== */
+
+void GUI_DrawPoint(uint16_t x, uint16_t y, uint16_t color) {
+    LCD_DrawPixel(x, y, color);
+}
+
+void LCD_Fill(uint16_t sx,uint16_t sy,uint16_t ex,uint16_t ey,uint16_t color) {
+    if (ex < sx || ey < sy) return;
+    uint16_t w = ex - sx + 1;
+    uint16_t h = ey - sy + 1;
+    LCD_FillRect(sx, sy, w, h, color);
+}
+
+void LCD_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    int16_t dx = (int16_t)x2 - (int16_t)x1;
+    int16_t dy = (int16_t)y2 - (int16_t)y1;
+    int16_t sx = (dx >= 0) ? 1 : -1;
+    int16_t sy = (dy >= 0) ? 1 : -1;
+    dx = (dx >= 0) ? dx : -dx;
+    dy = (dy >= 0) ? dy : -dy;
+
+    int16_t err = (dx > dy ? dx : -dy) / 2;
+    int16_t x = x1, y = y1;
+    for (;;) {
+        LCD_DrawPixel((uint16_t)x, (uint16_t)y, POINT_COLOR);
+        if (x == x2 && y == y2) break;
+        int16_t e2 = err;
+        if (e2 > -dx) { err -= dy; x += sx; }
+        if (e2 <  dy) { err += dx; y += sy; }
+    }
+}
+
+void LCD_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    uint16_t c = POINT_COLOR;
+    LCD_DrawLine(x1,y1,x2,y1);
+    LCD_DrawLine(x1,y1,x1,y2);
+    LCD_DrawLine(x1,y2,x2,y2);
+    LCD_DrawLine(x2,y1,x2,y2);
+    (void)c;
+}
+
+void LCD_DrawFillRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    LCD_Fill(x1,y1,x2,y2,POINT_COLOR);
+}
+
+/* ===== Circles / Triangles ===== */
+
+static void circle_plot8(int xc,int yc,int x,int y,uint16_t c){
+    LCD_DrawPixel((uint16_t)(xc+x),(uint16_t)(yc+y),c);
+    LCD_DrawPixel((uint16_t)(xc-x),(uint16_t)(yc+y),c);
+    LCD_DrawPixel((uint16_t)(xc+x),(uint16_t)(yc-y),c);
+    LCD_DrawPixel((uint16_t)(xc-x),(uint16_t)(yc-y),c);
+    LCD_DrawPixel((uint16_t)(xc+y),(uint16_t)(yc+x),c);
+    LCD_DrawPixel((uint16_t)(xc-y),(uint16_t)(yc+x),c);
+    LCD_DrawPixel((uint16_t)(xc+y),(uint16_t)(yc-x),c);
+    LCD_DrawPixel((uint16_t)(xc-y),(uint16_t)(yc-x),c);
+}
+
+void Draw_Circle(uint16_t x0,uint16_t y0,uint16_t fc,uint8_t r){
+    int x=0, y=r, d=3-2*r;
+    while(x<=y){
+        circle_plot8(x0,y0,x,y,fc);
+        if(d<0) d+=4*x+6;
+        else { d+=4*(x-y)+10; y--; }
+        x++;
+    }
+}
+
+static void swap_u16(uint16_t *a, uint16_t *b){ uint16_t t=*a; *a=*b; *b=t; }
+
+void Draw_Triangel(uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,uint16_t x2,uint16_t y2){
+    LCD_DrawLine(x0,y0,x1,y1);
+    LCD_DrawLine(x1,y1,x2,y2);
+    LCD_DrawLine(x2,y2,x0,y0);
+}
+
+void Fill_Triangel(uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,uint16_t x2,uint16_t y2){
+    int dx01 = x1 - x0, dy01 = y1 - y0;
+    int dx02 = x2 - x0, dy02 = y2 - y0;
+    int dx12 = x2 - x1, dy12 = y2 - y1;
+    uint16_t a, b, y, last;
+    long sa = 0, sb = 0;
+
+    if (y0 > y1) { swap_u16(&y0,&y1); swap_u16(&x0,&x1); }
+    if (y1 > y2) { swap_u16(&y2,&y1); swap_u16(&x2,&x1); }
+    if (y0 > y1) { swap_u16(&y0,&y1); swap_u16(&x0,&x1); }
+
+    if (y0 == y2) {
+        a = b = x0;
+        if (x1 < a) a = x1; else if (x1 > b) b = x1;
+        if (x2 < a) a = x2; else if (x2 > b) b = x2;
+        LCD_Fill(a, y0, b, y0, POINT_COLOR);
+        return;
+    }
+
+    last = (y1 == y2) ? y1 : (y1 - 1);
+    for (y = y0; y <= last; y++) {
+        a = x0 + (dy01 ? sa / dy01 : 0);
+        b = x0 + (dy02 ? sb / dy02 : 0);
+        sa += dx01; sb += dx02;
+        if (a > b) swap_u16(&a,&b);
+        LCD_Fill(a, y, b, y, POINT_COLOR);
+    }
+    sa = (long)dx12 * (long)(y - y1);
+    sb = (long)dx02 * (long)(y - y0);
+    for (; y <= y2; y++) {
+        a = x1 + (dy12 ? sa / dy12 : 0);
+        b = x0 + (dy02 ? sb / dy02 : 0);
+        sa += dx12; sb += dx02;
+        if (a > b) swap_u16(&a,&b);
+        LCD_Fill(a, y, b, y, POINT_COLOR);
+    }
+}
+
+/* ===== ASCII text ===== */
+
+void LCD_ShowChar(uint16_t x,uint16_t y,uint16_t fc,uint16_t bc,
+                  uint8_t ch,uint8_t size,uint8_t mode)
+{
+    if (ch < ' ' || ch > '~') return;
+
+    const uint8_t *rowdata;
+    uint8_t w = (size == 12) ? 6 : 8;
+    uint8_t h = (size == 12) ? 12 : 16;
+    uint8_t idx = (uint8_t)(ch - ' ');
+
+    for (uint8_t row = 0; row < h; row++) {
+        rowdata = (size == 12) ? &asc2_1206[idx][row] : &asc2_1608[idx][row];
+        uint8_t bits = *rowdata;
+        for (uint8_t col = 0; col < w; col++) {
+            if (bits & 0x01) LCD_DrawPixel(x+col, y+row, fc);
+            else if (!mode) LCD_DrawPixel(x+col, y+row, bc);
+            bits >>= 1;
+        }
+    }
+}
+
+void LCD_ShowString(uint16_t x,uint16_t y,uint8_t size,uint8_t *p,uint8_t mode)
+{
+    uint8_t cw = (size == 12) ? 6 : 8;
+    uint8_t ch = (size == 12) ? 12 : 16;
+    while (*p && *p >= ' ' && *p <= '~') {
+        if (x + cw > LCD_Width()) { x = 0; y += ch; }
+        if (y + ch > LCD_Height()) break;
+        LCD_ShowChar(x, y, POINT_COLOR, BACK_COLOR, *p, size, mode);
+        x += cw;
+        ++p;
+    }
+}
+
+void LCD_ShowNum(uint16_t x,uint16_t y,uint32_t num,uint8_t len,uint8_t size)
+{
+    for (uint8_t t = 0; t < len; t++) {
+        uint8_t d = (num / mypow10(len - t - 1)) % 10U;
+        LCD_ShowChar((uint16_t)(x + t * ((size==12)?6:8)), y,
+                     POINT_COLOR, BACK_COLOR, (uint8_t)('0'+d),
+                     size, 0);
+    }
+}
+
+void LCD_Show2Num(uint16_t x,uint16_t y,uint16_t num,uint8_t len,uint8_t size,uint8_t mode)
+{
+    for (int i = len - 1; i >= 0; --i) {
+        uint8_t d = (num / mypow10((uint8_t)i)) % 10U;
+        LCD_ShowChar((uint16_t)(x + (len - 1 - i) * ((size==12)?6:8)), y,
+                     POINT_COLOR, BACK_COLOR, (uint8_t)('0'+d), size, mode);
+    }
+}
+
+/* ===== Chinese text ===== */
+
+static void draw_cn_bitmap(uint16_t x, uint16_t y,
+                           uint16_t fc, uint16_t bc,
+                           const uint8_t *msk, uint8_t w, uint8_t h,
+                           uint8_t mode)
+{
+    uint32_t total = (uint32_t)w * h;  // one bit per pixel
+    for (uint32_t i = 0; i < total; i++) {
+        uint8_t byte = msk[i >> 3];
+        uint8_t bit  = 7 - (i & 7);
+        uint16_t px = (uint16_t)(x + (i % w));
+        uint16_t py = (uint16_t)(y + (i / w));
+        if (byte & (1U << bit)) {
+            LCD_DrawPixel(px, py, fc);
+        } else if (!mode) {
+            LCD_DrawPixel(px, py, bc);
+        }
+    }
+}
+
+void GUI_DrawFont16(uint16_t x, uint16_t y, uint16_t fc, uint16_t bc, uint8_t *s,uint8_t mode)
+{
+    for (uint16_t k = 0; k < tfont16_count; k++) {
+        if (tfont16[k].Index[0]==s[0] && tfont16[k].Index[1]==s[1]) {
+            draw_cn_bitmap(x,y,fc,bc,(const uint8_t*)tfont16[k].Msk,16,16,mode);
+            return;
+        }
+    }
+}
+
+void GUI_DrawFont24(uint16_t x, uint16_t y, uint16_t fc, uint16_t bc, uint8_t *s,uint8_t mode)
+{
+    for (uint16_t k = 0; k < tfont24_count; k++) {
+        if (tfont24[k].Index[0]==s[0] && tfont24[k].Index[1]==s[1]) {
+            draw_cn_bitmap(x,y,fc,bc,(const uint8_t*)tfont24[k].Msk,24,24,mode);
+            return;
+        }
+    }
+}
+
+void GUI_DrawFont32(uint16_t x, uint16_t y, uint16_t fc, uint16_t bc, uint8_t *s,uint8_t mode)
+{
+    for (uint16_t k = 0; k < tfont32_count; k++) {
+        if (tfont32[k].Index[0]==s[0] && tfont32[k].Index[1]==s[1]) {
+            draw_cn_bitmap(x,y,fc,bc,(const uint8_t*)tfont32[k].Msk,32,32,mode);
+            return;
+        }
+    }
+}
+

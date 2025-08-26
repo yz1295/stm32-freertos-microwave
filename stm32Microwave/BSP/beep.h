@@ -1,0 +1,45 @@
+/******************************************************************************
+ * @file    beep.h
+ * @author  Yiran Zhang
+ * @github  https://github.com/yz1295
+ * @brief   Simple active-high/low buzzer driver for STM32 (HAL).
+ ******************************************************************************/
+#ifndef BEEP_H
+#define BEEP_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "stm32f4xx_hal.h"
+
+/**
+ * @note Some buzzers are active-high, others active-low.
+ *       Configure via `active_level` when calling Beep_Init().
+ */
+typedef struct {
+    GPIO_TypeDef    *Port;         // GPIO port, e.g., GPIOB
+    uint16_t         Pin;          // GPIO pin, e.g., GPIO_PIN_0
+    GPIO_PinState    active_level; // GPIO_PIN_SET for active-high; GPIO_PIN_RESET for active-low
+} Beep_HandleTypeDef;
+
+// Initialize beeper GPIO (push-pull output, no pull, high speed)
+void Beep_Init(Beep_HandleTypeDef *hb, GPIO_TypeDef *port, uint16_t pin, GPIO_PinState active_level);
+
+// Turn beeper ON / OFF (respects active_level)
+void Beep_On(Beep_HandleTypeDef *hb);
+void Beep_Off(Beep_HandleTypeDef *hb);
+
+// Toggle beeper state
+void Beep_Toggle(Beep_HandleTypeDef *hb);
+
+// Blocking helper: beep `times`, with on/off durations in ms
+// Uses HAL_Delay() by default. If you have delay_ms(), define BEEP_USE_DELAY_MS and provide delay_ms(uint32_t).
+void Beep_Beep(Beep_HandleTypeDef *hb, uint8_t times, uint32_t on_ms, uint32_t off_ms);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // BEEP_H
+

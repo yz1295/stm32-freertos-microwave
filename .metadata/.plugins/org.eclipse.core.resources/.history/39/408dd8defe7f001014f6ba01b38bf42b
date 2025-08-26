@@ -1,0 +1,102 @@
+/**
+  ******************************************************************************
+  * @file    font.c
+  * @author  Yiran Zhang
+  * @brief   Font table lookups for ASCII and Chinese glyphs
+  * @github  https://github.com/yz1295
+  ******************************************************************************
+  */
+
+#include "font.h"
+#include <stddef.h>   // NULL
+#include <string.h>   // memcmp
+
+/* --------------------------------------------------------------------------
+ * If your font tables live in another .c file (recommended), keep the externs
+ * below. If you prefer to put the tables here, replace these externs with
+ * the actual definitions and set the *_count variables using sizeof().
+ * --------------------------------------------------------------------------*/
+
+extern const uint8_t asc2_1206[95][12];
+extern const uint8_t asc2_1608[95][16];
+
+extern const typFNT_GB16 tfont16[];
+extern const typFNT_GB24 tfont24[];
+extern const typFNT_GB32 tfont32[];
+
+/* Weak defaults allow this file to compile even if you forget to define the
+ * counts in your table source file. If left at 0, lookups will safely return NULL.
+ */
+__attribute__((weak)) const uint32_t tfont16_count = 0;
+__attribute__((weak)) const uint32_t tfont24_count = 0;
+__attribute__((weak)) const uint32_t tfont32_count = 0;
+
+/* --------------------------------------------------------------------------
+ * Internal helpers
+ * --------------------------------------------------------------------------*/
+
+static inline int is_printable_ascii(char c) {
+    return (c >= 32 && c <= 126);
+}
+
+static inline int idx_from_ascii(char c) {
+    return (int)(c - 32);  // tables are offset by 32
+}
+
+static const void* find_glyph_2byte(const void *table,
+                                    uint32_t count,
+                                    size_t record_size,
+                                    size_t index_offset,
+                                    const uint8_t index[2])
+{
+    /* Linear search on the 2‑byte GB2312/GBK index */
+    const uint8_t *p = (const uint8_t*)table;
+    for (uint32_t i = 0; i < count; ++i, p += record_size) {
+        if (p[index_offset + 0] == index[0] &&
+            p[index_offset + 1] == index[1]) {
+            return (const void*)p;
+        }
+    }
+    return NULL;
+}
+
+/* --------------------------------------------------------------------------
+ * Public API
+ * --------------------------------------------------------------------------*/
+
+const uint8_t* FONT_GetASCIIFont6x12(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1206[idx_from_ascii(c)];
+}
+
+const uint8_t* FONT_GetASCIIFont8x16(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1608[idx_from_ascii(c)];
+}
+
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    /* typFNT_GB16: Index at offset 0, record size = sizeof(typFNT_GB16) */
+    return (const typFNT_GB16*)find_glyph_2byte(
+        tfont16, tfont16_count, sizeof(typFNT_GB16), 0, index
+    );
+}
+
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB24*)find_glyph_2byte(
+        tfont24, tfont24_count, sizeof(typFNT_GB24), 0, index
+    );
+}
+
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB32*)find_glyph_2byte(
+        tfont32, tfont32_count, sizeof(typFNT_GB32), 0, index
+    );
+}

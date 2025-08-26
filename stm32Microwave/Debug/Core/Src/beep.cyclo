@@ -1,0 +1,6 @@
+../Core/Src/beep.c:16:13:Beep_EnableGPIOClock	10
+../Core/Src/beep.c:37:6:Beep_Init	2
+../Core/Src/beep.c:58:6:Beep_On	2
+../Core/Src/beep.c:64:6:Beep_Off	2
+../Core/Src/beep.c:70:6:Beep_Toggle	2
+../Core/Src/beep.c:76:6:Beep_Beep	5

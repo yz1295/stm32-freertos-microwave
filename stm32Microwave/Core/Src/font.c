@@ -1,0 +1,88 @@
+/**
+  ******************************************************************************
+  * @file    font.c
+  * @brief   Builds ASCII fonts from master 8x16 and provides lookups
+  ******************************************************************************/
+#include "font.h"
+#include <string.h>
+#include <stddef.h>
+
+/* Bring in the 8x16 font data ONLY here */
+#define FONT8x16_IMPLEMENTATION
+#include "font8x16.h"   /* defines: const uint8_t font8x16[][16] */
+
+/* ===== Runtime-built ASCII tables ===== */
+uint8_t asc2_1206[95][12];  /* 6x12 cropped from 8x16 */
+uint8_t asc2_1608[95][16];  /* exact copy of 8x16 subset (ASCII 32..126) */
+
+/* ===== Chinese fonts — keep empty unless you add data ===== */
+//const typFNT_GB16 tfont16[] = { /* empty */ };
+const typFNT_GB24 tfont24[] = { /* empty */ };
+const typFNT_GB32 tfont32[] = { /* empty */ };
+//const uint32_t tfont16_count = (uint32_t)(sizeof(tfont16)/sizeof(tfont16[0]));
+const uint32_t tfont24_count = (uint32_t)(sizeof(tfont24)/sizeof(tfont24[0]));
+const uint32_t tfont32_count = (uint32_t)(sizeof(tfont32)/sizeof(tfont32[0]));
+
+/* ---- helpers ---- */
+static inline int is_printable_ascii(char c) { return (c >= 32 && c <= 126); }
+static inline int idx_from_ascii(char c)    { return (int)(c - 32); }
+
+/* ---- build tables from master 8x16 ---- */
+void Font_Init(void)
+{
+    /* 8x16 subset for ASCII ' '..'~' */
+    for (int c = 32; c <= 126; ++c) {
+        for (int row = 0; row < 16; ++row) {
+            asc2_1608[c - 32][row] = font8x16[(uint8_t)c][row];
+        }
+    }
+
+    /* 6x12 derived from 8x16 (top 12 rows, left 6 columns; MSB-first) */
+    for (int c = 32; c <= 126; ++c) {
+        for (int row = 0; row < 12; ++row) {
+            /* keep left 6 bits (7..2), clear rightmost 2 bits for 6px width */
+            asc2_1206[c - 32][row] = (uint8_t)(font8x16[(uint8_t)c][row] & 0xFC);
+        }
+    }
+}
+
+/* ---- getters for GUI ---- */
+const uint8_t* FONT_GetASCIIFont6x12(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1206[idx_from_ascii(c)];
+}
+const uint8_t* FONT_GetASCIIFont8x16(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1608[idx_from_ascii(c)];
+}
+
+/* ---- Chinese lookups (no-op until you add glyphs) ---- */
+static const void* find_glyph_2byte(const void *table, uint32_t count,
+                                    size_t record_size, size_t index_offset,
+                                    const uint8_t index[2])
+{
+    const uint8_t *p = (const uint8_t*)table;
+    for (uint32_t i = 0; i < count; ++i, p += record_size) {
+        if (p[index_offset+0]==index[0] && p[index_offset+1]==index[1])
+            return (const void*)p;
+    }
+    return NULL;
+}
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB16*)find_glyph_2byte(tfont16, tfont16_count, sizeof(typFNT_GB16), 0, index);
+}
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB24*)find_glyph_2byte(tfont24, tfont24_count, sizeof(typFNT_GB24), 0, index);
+}
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB32*)find_glyph_2byte(tfont32, tfont32_count, sizeof(typFNT_GB32), 0, index);
+}
+

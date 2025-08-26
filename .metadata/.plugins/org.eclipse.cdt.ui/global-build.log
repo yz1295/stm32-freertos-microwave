@@ -1,0 +1,7 @@
+08:34:08 **** Build of configuration Debug for project stm32Microwave ****
+make -j8 all 
+arm-none-eabi-size  stm32Microwave.elf 
+   text	   data	    bss	    dec	    hex	filename
+  32648	    108	  35900	  68656	  10c30	stm32Microwave.elf
+Finished building: default.size.stdout
+ 

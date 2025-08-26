@@ -1,0 +1,140 @@
+/**
+  ******************************************************************************
+  * @file    font.c
+  * @author  Yiran Zhang
+  * @brief   Font table lookups for ASCII and Chinese glyphs
+  * @github  https://github.com/yz1295
+  ******************************************************************************
+  */
+
+#include "font.h"
+
+#include "font8x16.h"
+
+#include <stddef.h>   // NULL
+#include <string.h>   // memcmp
+
+/* ============================================================
+ * ASCII bitmaps — definitions
+ * (These are the ones you already had. Kept verbatim.)
+ * ============================================================ */
+
+const unsigned char asc2_1206[95][12] = {
+    /* paste of your original asc2_1206 from old font.h */
+    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},/*" ",0*/
+    {0x00,0x00,0x04,0x04,0x04,0x04,0x04,0x04,0x00,0x04,0x00,0x00},/*"!",1*/
+    /* ... keep the rest exactly as in your old file ... */
+};
+
+const unsigned char asc2_1608[95][16] = {
+    // Characters 32..126
+    #define CH(x) font8x16[x]
+    CH(32),  CH(33),  CH(34),  CH(35),  CH(36),  CH(37),  CH(38),  CH(39),
+    CH(40),  CH(41),  CH(42),  CH(43),  CH(44),  CH(45),  CH(46),  CH(47),
+    CH(48),  CH(49),  CH(50),  CH(51),  CH(52),  CH(53),  CH(54),  CH(55),
+    CH(56),  CH(57),  CH(58),  CH(59),  CH(60),  CH(61),  CH(62),  CH(63),
+    CH(64),  CH(65),  CH(66),  CH(67),  CH(68),  CH(69),  CH(70),  CH(71),
+    CH(72),  CH(73),  CH(74),  CH(75),  CH(76),  CH(77),  CH(78),  CH(79),
+    CH(80),  CH(81),  CH(82),  CH(83),  CH(84),  CH(85),  CH(86),  CH(87),
+    CH(88),  CH(89),  CH(90),  CH(91),  CH(92),  CH(93),  CH(94),  CH(95),
+    CH(96),  CH(97),  CH(98),  CH(99),  CH(100), CH(101), CH(102), CH(103),
+    CH(104), CH(105), CH(106), CH(107), CH(108), CH(109), CH(110), CH(111),
+    CH(112), CH(113), CH(114), CH(115), CH(116), CH(117), CH(118), CH(119),
+    CH(120), CH(121), CH(122), CH(123), CH(124), CH(125), CH(126)
+    #undef CH
+};
+/* ============================================================
+ * Chinese fonts — definitions
+ * If you only need English, you can keep these empty and the
+ * GUI Chinese routines will simply do nothing.
+ * To enable Chinese, paste your original tfont16/tfont24/tfont32
+ * arrays (with their glyph data) here and set the *_count below.
+ * ============================================================ */
+
+const typFNT_GB16 tfont16[] = {
+    /* Empty for English-only build.
+       If you need Chinese, paste entries like:
+       { "深", { 0x00,0x00, ... 32 bytes ... } }, ... */
+};
+
+const typFNT_GB24 tfont24[] = {
+    /* Empty for English-only build. */
+};
+
+const typFNT_GB32 tfont32[] = {
+    /* Empty for English-only build. */
+};
+
+/* ===== element counts (use these in code instead of sizeof on incomplete types) */
+const uint32_t tfont16_count = (uint32_t)(sizeof(tfont16) / sizeof(tfont16[0])); /* 0 for English-only */
+const uint32_t tfont24_count = (uint32_t)(sizeof(tfont24) / sizeof(tfont24[0])); /* 0 for English-only */
+const uint32_t tfont32_count = (uint32_t)(sizeof(tfont32) / sizeof(tfont32[0])); /* 0 for English-only */
+/* --------------------------------------------------------------------------
+ * Internal helpers
+ * --------------------------------------------------------------------------*/
+
+static inline int is_printable_ascii(char c) {
+    return (c >= 32 && c <= 126);
+}
+
+static inline int idx_from_ascii(char c) {
+    return (int)(c - 32);  // tables are offset by 32
+}
+
+static const void* find_glyph_2byte(const void *table,
+                                    uint32_t count,
+                                    size_t record_size,
+                                    size_t index_offset,
+                                    const uint8_t index[2])
+{
+    /* Linear search on the 2‑byte GB2312/GBK index */
+    const uint8_t *p = (const uint8_t*)table;
+    for (uint32_t i = 0; i < count; ++i, p += record_size) {
+        if (p[index_offset + 0] == index[0] &&
+            p[index_offset + 1] == index[1]) {
+            return (const void*)p;
+        }
+    }
+    return NULL;
+}
+
+/* --------------------------------------------------------------------------
+ * Public API
+ * --------------------------------------------------------------------------*/
+
+const uint8_t* FONT_GetASCIIFont6x12(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1206[idx_from_ascii(c)];
+}
+
+const uint8_t* FONT_GetASCIIFont8x16(char c)
+{
+    if (!is_printable_ascii(c)) return NULL;
+    return asc2_1608[idx_from_ascii(c)];
+}
+
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    /* typFNT_GB16: Index at offset 0, record size = sizeof(typFNT_GB16) */
+    return (const typFNT_GB16*)find_glyph_2byte(
+        tfont16, tfont16_count, sizeof(typFNT_GB16), 0, index
+    );
+}
+
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB24*)find_glyph_2byte(
+        tfont24, tfont24_count, sizeof(typFNT_GB24), 0, index
+    );
+}
+
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2])
+{
+    if (!index) return NULL;
+    return (const typFNT_GB32*)find_glyph_2byte(
+        tfont32, tfont32_count, sizeof(typFNT_GB32), 0, index
+    );
+}

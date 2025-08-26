@@ -1,0 +1,43 @@
+#include "lcd.h"
+#include "gui.h"
+#include "font.h"   // for Show_Str / GUI_DrawFontXX
+
+static void run_text_ascii(void) {
+    LCD_Clear(BLACK);
+
+    // simple header bar
+    LCD_FillRect(0, 0, LCD_Width(), 16, 0x4208);   // dark slate
+    LCD_DrawFastHLine(0, 16, LCD_Width(), WHITE);
+
+    // ASCII 12/16 px fonts
+    POINT_COLOR = WHITE; BACK_COLOR = BLACK;
+    LCD_ShowString(4, 24, 12, (uint8_t*)"Hello, ST7735!", 0);
+    LCD_ShowString(4, 40, 16, (uint8_t*)"Width:", 0);
+
+    // print width/height using your number routine
+    LCD_ShowNum(4+6*8, 40, LCD_Width(), 3, 16);
+    LCD_ShowString(4, 58, 16, (uint8_t*)"Height:", 0);
+    LCD_ShowNum(4+7*8, 58, LCD_Height(), 3, 16);
+
+    // rectangle demo
+    LCD_DrawRectangle(2, 20, LCD_Width()-3, LCD_Height()-3);
+    LCD_DrawFillRectangle(LCD_Width()-64-8, LCD_Height()-32-8,
+                          LCD_Width()-8,     LCD_Height()-8);
+}
+
+static void run_text_cn(void) {
+    // requires your GB16/24/32 tables in font.c
+    LCD_Clear(BLACK);
+    POINT_COLOR = YELLOW; BACK_COLOR = BLACK;
+    // 16x16
+    GUI_DrawFont16(4, 24, YELLOW, BLACK, (uint8_t*)"中文", 0);
+    // 24x24
+    GUI_DrawFont24(4, 50, CYAN, BLACK, (uint8_t*)"测 试", 0);
+    // 32x32
+    GUI_DrawFont32(4, 80, MAGENTA, BLACK, (uint8_t*)"字体", 0);
+
+    // Mixed string: ASCII + Chinese
+    Show_Str(4, 120, WHITE, BLACK, (uint8_t*)"Hello 中文!", 16, 0);
+}
+
+

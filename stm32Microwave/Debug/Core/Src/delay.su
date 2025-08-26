@@ -1,0 +1,5 @@
+../Core/Src/delay.c:18:16:dwt_try_init	16	static,ignoring_inline_asm
+../Core/Src/delay.c:43:13:systick_delay_us	40	static
+../Core/Src/delay.c:61:9:delay_init	8	static
+../Core/Src/delay.c:67:6:delay_us	24	static,ignoring_inline_asm
+../Core/Src/delay.c:84:6:delay_ms	16	static

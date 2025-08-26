@@ -1,0 +1,134 @@
+/**
+  ******************************************************************************
+  * @file    font.h
+  * @author  Yiran Zhang
+  * @brief   Font tables and prototypes for ASCII/Chinese characters
+  * @details Provides access to bitmap font data for displaying text
+  *          on TFT LCD modules. Supports ASCII (6x12, 8x16) and
+  *          Chinese fonts (16x16, 24x24, 32x32).
+  * @note    ASCII tables are always available.
+  *          Chinese tables require GB2312/GBK encoding and may be empty
+  *          if not used.
+  * @github  https://github.com/yz1295
+  ******************************************************************************
+  */
+
+#ifndef __FONT_H
+#define __FONT_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* --------------------------------------------------------------------------
+ * ASCII Font Tables
+ * --------------------------------------------------------------------------*/
+
+/**
+ * @brief  ASCII 6x12 font table (95 printable chars, index offset 32).
+ * @note   Each character is 12 bytes tall, 6 pixels wide.
+ */
+extern const uint8_t asc2_1206[95][12];
+
+/**
+ * @brief  ASCII 8x16 font table (95 printable chars, index offset 32).
+ * @note   Each character is 16 bytes tall, 8 pixels wide.
+ */
+extern const uint8_t asc2_1608[95][16];
+
+/* --------------------------------------------------------------------------
+ * Chinese Font Structures
+ * --------------------------------------------------------------------------*/
+
+/**
+ * @brief  Chinese 16x16 font record
+ * @param  Index Two-byte GB2312/GBK index of the character
+ * @param  Msk   32 bytes of bitmap data (16x16 pixels)
+ */
+typedef struct {
+    uint8_t Index[2];
+    uint8_t Msk[32];
+} typFNT_GB16;
+
+/**
+ * @brief  Chinese 24x24 font record
+ * @param  Index Two-byte GB2312/GBK index of the character
+ * @param  Msk   72 bytes of bitmap data (24x24 pixels)
+ */
+typedef struct {
+    uint8_t Index[2];
+    uint8_t Msk[72];
+} typFNT_GB24;
+
+/**
+ * @brief  Chinese 32x32 font record
+ * @param  Index Two-byte GB2312/GBK index of the character
+ * @param  Msk   128 bytes of bitmap data (32x32 pixels)
+ */
+typedef struct {
+    uint8_t Index[2];
+    uint8_t Msk[128];
+} typFNT_GB32;
+
+/* --------------------------------------------------------------------------
+ * Chinese Font Tables (defined in font.c)
+ * --------------------------------------------------------------------------*/
+
+/** 16x16 Chinese font table */
+extern const typFNT_GB16 tfont16[];
+/** 24x24 Chinese font table */
+extern const typFNT_GB24 tfont24[];
+/** 32x32 Chinese font table */
+extern const typFNT_GB32 tfont32[];
+
+/** Number of entries in Chinese font tables */
+extern const uint32_t tfont16_count;
+extern const uint32_t tfont24_count;
+extern const uint32_t tfont32_count;
+
+/* --------------------------------------------------------------------------
+ * Function Prototypes
+ * --------------------------------------------------------------------------*/
+
+/**
+ * @brief  Get pointer to 6x12 ASCII bitmap
+ * @param  c ASCII character (32–126)
+ * @return Pointer to 12-byte bitmap
+ */
+const uint8_t* FONT_GetASCIIFont6x12(char c);
+
+/**
+ * @brief  Get pointer to 8x16 ASCII bitmap
+ * @param  c ASCII character (32–126)
+ * @return Pointer to 16-byte bitmap
+ */
+const uint8_t* FONT_GetASCIIFont8x16(char c);
+
+/**
+ * @brief  Search for 16x16 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB16 record, or NULL if not found
+ */
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2]);
+
+/**
+ * @brief  Search for 24x24 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB24 record, or NULL if not found
+ */
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2]);
+
+/**
+ * @brief  Search for 32x32 Chinese character bitmap
+ * @param  index Two-byte GB2312/GBK index
+ * @return Pointer to typFNT_GB32 record, or NULL if not found
+ */
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2]);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __FONT_H */

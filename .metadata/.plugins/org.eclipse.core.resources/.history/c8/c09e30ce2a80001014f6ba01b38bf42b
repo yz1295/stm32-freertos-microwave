@@ -1,0 +1,145 @@
+/********************  GUI TESTS  ********************/
+#include "lcd.h"
+#include "gui.h"
+#include <string.h>
+
+/* Small helper for clamping inside screen */
+static inline uint16_t _W(void){ return LCD_Width(); }
+static inline uint16_t _H(void){ return LCD_Height(); }
+
+/* ------------- 1) LCD probe: color bars + borders + ID text ------------- */
+void run_lcd_probe(void)
+{
+    LCD_Clear(BLACK);
+
+    /* 8 vertical color bars */
+    const uint16_t cols[8] = {RED, YELLOW, GREEN, CYAN, BLUE, MAGENTA, WHITE, GRAY};
+    uint16_t bw = _W() / 8;
+    for (int i = 0; i < 8; ++i) {
+        LCD_FillRect(i * bw, 0, (i == 7 ? (_W() - i*bw) : bw), _H(), cols[i]);
+    }
+
+    /* border */
+    LCD_DrawRectangle(0, 0, _W()-1, _H()-1);
+    LCD_DrawRectangle(1, 1, _W()-2, _H()-2);
+
+    /* label lines */
+    LCD_FillRect(0, _H()/2 - 1, _W(), 2, BLACK);
+    LCD_FillRect(_W()/2 - 1, 0, 2, _H(), BLACK);
+
+    /* text */
+    uint8_t s1[] = "ST7735 PROBE";
+    uint8_t s2[] = "128x160 RGB565";
+    Gui_StrCenter(10,  WHITE, BLACK, s1, 16, 0);
+    Gui_StrCenter(26,  WHITE, BLACK, s2, 16, 0);
+
+    HAL_Delay(1000);
+}
+
+/* ------------- 2) ASCII text demo ------------- */
+void run_text_ascii(void)
+{
+    LCD_Clear(BLACK);
+
+    /* show a header centered */
+    Gui_StrCenter(4,  CYAN,  BLACK, (uint8_t*)"ASCII TEXT DEMO", 16, 0);
+
+    /* rows of ASCII at different sizes */
+    uint8_t row1[] = "Hello, STM32! 0123456789";
+    uint8_t row2[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    uint8_t row3[] = "abcdefghijklmnopqrstuvwxyz";
+    uint8_t row4[] = "!@#$%^&*()_+-=[]{};:'\",.<>/?\\|";
+
+    LCD_ShowString(4,  28, 16, row1, 0);
+    LCD_ShowString(4,  46, 16, row2, 0);
+    LCD_ShowString(4,  64, 16, row3, 0);
+    LCD_ShowString(4,  82, 16, row4, 0);
+
+    /* numbers with helpers */
+    LCD_ShowString(4,  104, 16, (uint8_t*)"Num:", 0);
+    LCD_ShowNum(4 + 5*8, 104, 123456, 6, 16);
+    LCD_ShowString(4,  122, 16, (uint8_t*)"Two-digit:", 0);
+    LCD_Show2Num(4 + 11*8, 122, 7, 2, 16, 0);
+
+    HAL_Delay(1000);
+}
+
+/* ------------- 3) Centering demo (uses 6‑arg Gui_StrCenter) ------------- */
+void run_center_demo(void)
+{
+    LCD_Clear(NAVY); /* if NAVY not defined, use BLUE or a dark color */
+    Gui_StrCenter(20,  YELLOW,  NAVY, (uint8_t*)"CENTER DEMO", 16, 0);
+    Gui_StrCenter(60,  WHITE,   NAVY, (uint8_t*)"This line is centered", 16, 0);
+    Gui_StrCenter(100, CYAN,    NAVY, (uint8_t*)"and so is this.", 16, 0);
+    HAL_Delay(1000);
+}
+
+/* ------------- 4) Shapes demo: lines, rectangles, circles, triangles ------------- */
+void run_shapes_demo(void)
+{
+    LCD_Clear(BLACK);
+
+    /* crossing lines */
+    for (uint16_t x = 0; x < _W(); x += 8) {
+        LCD_DrawLine(0, 0, x, _H()-1);
+    }
+    for (uint16_t y = 0; y < _H(); y += 8) {
+        LCD_DrawLine(0, 0, _W()-1, y);
+    }
+
+    HAL_Delay(600);
+    LCD_Clear(BLACK);
+
+    /* rectangles */
+    LCD_DrawRectangle(4, 4,  _W()-5, _H()-5);
+    LCD_DrawRectangle(10, 20, _W()-11, _H()-21);
+    LCD_DrawFillRectangle(20, 30, 60, 30);
+    LCD_DrawFillRectangle(_W()-80, 70, 70, 40);
+
+    /* circles */
+    Draw_Circle(_W()/2, _H()/2, RED, 18);
+    Draw_Circle(_W()/2, _H()/2, GREEN, 12);
+
+    /* triangle: filled on the left */
+    Fill_Triangel(10, _H()-10, 60, _H()-10, 28, 90);
+
+    HAL_Delay(1000);
+}
+
+/* ------------- 5) Fill speed sweep demo ------------- */
+void run_fill_sweep(void)
+{
+    const uint16_t palette[] = {BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, WHITE, ORANGE, GRAY};
+    for (int p = 0; p < (int)(sizeof(palette)/sizeof(palette[0])); ++p) {
+        LCD_Clear(palette[p]);
+        HAL_Delay(150);
+    }
+
+    /* tiles */
+    for (uint16_t y = 0; y < _H(); y += 16) {
+        for (uint16_t x = 0; x < _W(); x += 16) {
+            uint16_t w = (x+16 <= _W()) ? 16 : (_W()-x);
+            uint16_t h = (y+16 <= _H()) ? 16 : (_H()-y);
+            LCD_FillRect(x, y, w, h, ((x/16 + y/16) & 1) ? DARKGREEN : DARKBLUE);
+        }
+    }
+    HAL_Delay(500);
+}
+
+/* ------------- 6) (Optional) Chinese text demo ------------- */
+/* Requires tfont16/tfont24/tfont32 built in font.c */
+void run_text_cn(void)
+{
+    LCD_Clear(BLACK);
+
+    /* Example: "中文测试" (you must ensure these glyphs exist in your tables) */
+    uint8_t cn[] = "中文测试";
+
+    Gui_StrCenter(8,  WHITE, BLACK, (uint8_t*)"CHINESE DEMO", 16, 0);
+    Show_Str(8,  34,  WHITE, BLACK, cn, 16, 0);
+    Show_Str(8,  58,  WHITE, BLACK, cn, 24, 0);
+    Show_Str(8,  90,  WHITE, BLACK, cn, 32, 0);
+
+    HAL_Delay(1200);
+}
+

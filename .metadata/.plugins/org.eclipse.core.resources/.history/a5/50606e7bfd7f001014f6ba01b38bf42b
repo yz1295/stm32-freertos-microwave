@@ -1,0 +1,97 @@
+#ifndef __LCD_H
+#define __LCD_H
+/*
+ * ST7735 1.8" TFT (128x160) — STM32 HAL interface
+ * - Uses SPI1 (extern SPI_HandleTypeDef hspi1;)
+ * - Control pins (CS/DC/RST/BL) come from CubeMX's main.h macros:
+ *     LCD_CS_Pin,  LCD_CS_GPIO_Port
+ *     LCD_DC_Pin,  LCD_DC_GPIO_Port
+ *     LCD_RST_Pin, LCD_RST_GPIO_Port
+ *     (optional) LCD_BL_Pin,  LCD_BL_GPIO_Port
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "stm32f4xx_hal.h"
+#include "main.h"
+#include <stdint.h>
+#include <stddef.h>
+
+/* ========= Panel geometry =========
+ * Logical width/height before rotation. The driver will swap them
+ * internally when you call LCD_SetRotation(0..3).
+ */
+#define ST7735_WIDTH     128
+#define ST7735_HEIGHT    160
+
+/* Some ST7735 boards need a small X/Y start offset. Start with 0.
+ * If your image is shifted, try X=2 and/or Y=1.
+ */
+#ifndef ST7735_XSTART
+#define ST7735_XSTART    0
+#endif
+#ifndef ST7735_YSTART
+#define ST7735_YSTART    0
+#endif
+
+/* ========= Color helpers (RGB565) ========= */
+#define RGB565(r,g,b)    ( ((uint16_t)((r)&0x1F) << 11) | ((uint16_t)((g)&0x3F) << 5) | ((uint16_t)((b)&0x1F)) )
+
+/* Common colors */
+#define BLACK     0x0000
+#define WHITE     0xFFFF
+#define RED       0xF800
+#define GREEN     0x07E0
+#define BLUE      0x001F
+#define YELLOW    0xFFE0
+#define CYAN      0x07FF
+#define MAGENTA   0xF81F
+#define GRAY      0x8430
+#define ORANGE    0xFD20
+#define PINK      0xF81F
+
+/* ========= Public API ========= */
+
+/* Initialize ST7735 (spi+gpio must be already inited by MX_* from CubeMX) */
+void LCD_Init(void);
+
+/* Set rotation/orientation: 0,1,2,3 (90° steps) */
+void LCD_SetRotation(uint8_t rotation);
+
+/* Clear entire screen to a color */
+void LCD_Clear(uint16_t color);
+
+/* Draw a single pixel (safe clipped) */
+void LCD_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
+
+/* Filled rectangle (safe clipped) */
+void LCD_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
+
+/* Optional helpers (implemented in lcd.c; comment out if unused) */
+void LCD_DrawFastHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t color);
+void LCD_DrawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color);
+
+/* If you want to quickly push a raw RGB565 image block (w*h pixels) to (x,y) */
+void LCD_DrawImage565(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *pixels);
+
+/* Expose current logical width/height after rotation (read-only) */
+uint16_t LCD_Width(void);
+uint16_t LCD_Height(void);
+
+/* ========= External SPI handle ========= */
+extern SPI_HandleTypeDef hspi1;
+
+/* ========= Optional backlight control =========
+ * If you wired BL to a GPIO and CubeMX created LCD_BL_* macros,
+ * you can use these convenience functions (implemented in lcd.c).
+ * If BL is hard-wired to 3V3, these are no-ops.
+ */
+void LCD_Backlight_On(void);
+void LCD_Backlight_Off(void);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* __LCD_H */

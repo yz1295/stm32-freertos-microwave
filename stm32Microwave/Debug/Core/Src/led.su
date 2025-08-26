@@ -1,0 +1,7 @@
+../Core/Src/led.c:12:13:LED_EnableGPIOClock	56	static
+../Core/Src/led.c:35:6:LED_Init	24	static
+../Core/Src/led.c:46:6:led_config	40	static
+../Core/Src/led.c:62:6:led_on	16	static
+../Core/Src/led.c:68:6:led_off	16	static
+../Core/Src/led.c:74:6:led_toggle	16	static
+../Core/Src/led.c:80:6:led_blink_blocking	24	static

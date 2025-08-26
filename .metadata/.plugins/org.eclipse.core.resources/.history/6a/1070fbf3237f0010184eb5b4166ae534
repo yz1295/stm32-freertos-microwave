@@ -1,0 +1,162 @@
+#include "lcd.h"
+#include <string.h>
+
+extern SPI_HandleTypeDef hspi1;
+
+// Short aliases to keep code tidy
+#define CS_LO()   HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_RESET)
+#define CS_HI()   HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_SET)
+#define DC_LO()   HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_RESET)
+#define DC_HI()   HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_SET)
+#define RST_LO()  HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_RESET)
+#define RST_HI()  HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_SET)
+#ifdef LCD_BL_Pin
+#define BL_ON()   HAL_GPIO_WritePin(LCD_BL_GPIO_Port,  LCD_BL_Pin,  GPIO_PIN_SET)
+#define BL_OFF()  HAL_GPIO_WritePin(LCD_BL_GPIO_Port,  LCD_BL_Pin,  GPIO_PIN_RESET)
+#else
+#define BL_ON()   ((void)0)
+#define BL_OFF()  ((void)0)
+#endif
+
+static uint16_t _width  = ST7735_WIDTH;
+static uint16_t _height = ST7735_HEIGHT;
+static uint8_t  _rot    = 0;  // 0..3
+
+// --- low-level SPI write ---
+static inline void wr8(uint8_t d) {
+  HAL_SPI_Transmit(&hspi1, &d, 1, HAL_MAX_DELAY);
+}
+static inline void wr16(uint16_t d) {
+  uint8_t b[2] = { d>>8, d&0xFF };
+  HAL_SPI_Transmit(&hspi1, b, 2, HAL_MAX_DELAY);
+}
+
+static void write_cmd(uint8_t cmd) {
+  DC_LO(); CS_LO(); wr8(cmd); CS_HI();
+}
+static void write_data8(uint8_t data) {
+  DC_HI(); CS_LO(); wr8(data); CS_HI();
+}
+static void write_data16_rep(uint16_t color, uint32_t count) {
+  DC_HI(); CS_LO();
+  uint8_t b[2] = { color>>8, color&0xFF };
+  while (count--) HAL_SPI_Transmit(&hspi1, b, 2, HAL_MAX_DELAY);
+  CS_HI();
+}
+
+static void hw_reset(void) {
+  RST_LO(); HAL_Delay(100);
+  RST_HI(); HAL_Delay(120);
+}
+
+// Set address window (inclusive)
+static void set_window(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye) {
+  xs += ST7735_XSTART; xe += ST7735_XSTART;
+  ys += ST7735_YSTART; ye += ST7735_YSTART;
+
+  write_cmd(0x2A); // CASET
+  write_data8(xs >> 8); write_data8(xs & 0xFF);
+  write_data8(xe >> 8); write_data8(xe & 0xFF);
+
+  write_cmd(0x2B); // RASET
+  write_data8(ys >> 8); write_data8(ys & 0xFF);
+  write_data8(ye >> 8); write_data8(ye & 0xFF);
+
+  write_cmd(0x2C); // RAMWR
+}
+
+// Rotation via MADCTL (0x36)
+// The values below match the style you used earlier (BGR=1).
+static void set_madctl_by_rot(uint8_t rot) {
+  // base BGR bit
+  uint8_t madctl;
+  switch (rot & 3) {
+    case 0: madctl = 0xC0; _width = ST7735_WIDTH;  _height = ST7735_HEIGHT;  break; // MX|MY|BGR
+    case 1: madctl = 0xA0; _width = ST7735_HEIGHT; _height = ST7735_WIDTH;   break; // MV|MY|BGR
+    case 2: madctl = 0x00; _width = ST7735_WIDTH;  _height = ST7735_HEIGHT;  break; // BGR=0|MX=0|MY=0|MV=0 (some panels still BGR internally)
+    default:madctl = 0x60; _width = ST7735_HEIGHT; _height = ST7735_WIDTH;   break; // MV|MX
+  }
+  write_cmd(0x36);
+  write_data8(madctl);
+}
+
+// Public API
+void LCD_SetRotation(uint8_t rot) {
+  _rot = rot & 3;
+  set_madctl_by_rot(_rot);
+}
+
+// ST7735S init (128×160). This is a common, stable sequence.
+void LCD_Init(void) {
+  BL_OFF();
+  hw_reset();
+
+  write_cmd(0x11); // Sleep out
+  HAL_Delay(120);
+
+  // Frame rate
+  write_cmd(0xB1); write_data8(0x01); write_data8(0x2C); write_data8(0x2D);
+  write_cmd(0xB2); write_data8(0x01); write_data8(0x2C); write_data8(0x2D);
+  write_cmd(0xB3); write_data8(0x01); write_data8(0x2C); write_data8(0x2D);
+                    write_data8(0x01); write_data8(0x2C); write_data8(0x2D);
+
+  // Inversion
+  write_cmd(0xB4); write_data8(0x07);
+
+  // Power sequence
+  write_cmd(0xC0); write_data8(0xA2); write_data8(0x02); write_data8(0x84);
+  write_cmd(0xC1); write_data8(0xC5);
+  write_cmd(0xC2); write_data8(0x0A); write_data8(0x00);
+  write_cmd(0xC3); write_data8(0x8A); write_data8(0x2A);
+  write_cmd(0xC4); write_data8(0x8A); write_data8(0xEE);
+  write_cmd(0xC5); write_data8(0x0E); // VCOM
+
+  // Memory access (orientation) — default 0
+  set_madctl_by_rot(0);
+
+  // Gamma
+  write_cmd(0xE0);
+  write_data8(0x0f); write_data8(0x1a); write_data8(0x0f); write_data8(0x18);
+  write_data8(0x2f); write_data8(0x28); write_data8(0x20); write_data8(0x22);
+  write_data8(0x1f); write_data8(0x1b); write_data8(0x23); write_data8(0x37);
+  write_data8(0x00); write_data8(0x07); write_data8(0x02); write_data8(0x10);
+
+  write_cmd(0xE1);
+  write_data8(0x0f); write_data8(0x1b); write_data8(0x0f); write_data8(0x17);
+  write_data8(0x33); write_data8(0x2c); write_data8(0x29); write_data8(0x2e);
+  write_data8(0x30); write_data8(0x30); write_data8(0x39); write_data8(0x3f);
+  write_data8(0x00); write_data8(0x07); write_data8(0x03); write_data8(0x10);
+
+  // Column/Row range (full area)
+  write_cmd(0x2A); write_data8(0x00); write_data8(0x00); write_data8(0x00); write_data8(0x7F); // 0..127
+  write_cmd(0x2B); write_data8(0x00); write_data8(0x00); write_data8(0x00); write_data8(0x9F); // 0..159
+
+  // Pixel format: 16-bit
+  write_cmd(0x3A); write_data8(0x05);
+
+  // Display on
+  write_cmd(0x29);
+
+  BL_ON();
+  LCD_Clear(BLACK);
+}
+
+void LCD_Clear(uint16_t color) {
+  set_window(0, 0, _width - 1, _height - 1);
+  write_data16_rep(color, (uint32_t)_width * _height);
+}
+
+void LCD_DrawPixel(uint16_t x, uint16_t y, uint16_t color) {
+  if (x >= _width || y >= _height) return;
+  set_window(x, y, x, y);
+  DC_HI(); CS_LO(); wr16(color); CS_HI();
+}
+
+void LCD_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
+  if (x >= _width || y >= _height) return;
+  if ((x + w) > _width)  w = _width  - x;
+  if ((y + h) > _height) h = _height - y;
+  set_window(x, y, x + w - 1, y + h - 1);
+  write_data16_rep(color, (uint32_t)w * h);
+}
+

@@ -1,0 +1,78 @@
+/********************  GUI TESTS  ********************/
+#include "lcd.h"
+#include "gui.h"
+#include <string.h>
+
+/* Small helper for clamping inside screen */
+static inline uint16_t _W(void){ return LCD_Width(); }
+static inline uint16_t _H(void){ return LCD_Height(); }
+
+/* ------------- 1) LCD probe: color bars + borders + ID text ------------- */
+
+
+/* ------------- 2) ASCII text demo ------------- */
+
+/* ------------- 3) Centering demo (uses 6‑arg Gui_StrCenter) ------------- */
+void run_center_demo(void)
+{
+    LCD_Clear(NAVY); /* if NAVY not defined, use BLUE or a dark color */
+    Gui_StrCenter(20,  YELLOW,  NAVY, (uint8_t*)"CENTER DEMO", 16, 0);
+    Gui_StrCenter(60,  WHITE,   NAVY, (uint8_t*)"This line is centered", 16, 0);
+    Gui_StrCenter(100, CYAN,    NAVY, (uint8_t*)"and so is this.", 16, 0);
+    HAL_Delay(1000);
+}
+
+/* ------------- 4) Shapes demo: lines, rectangles, circles, triangles ------------- */
+void run_shapes_demo(void)
+{
+    LCD_Clear(BLACK);
+
+    /* crossing lines */
+    for (uint16_t x = 0; x < _W(); x += 8) {
+        LCD_DrawLine(0, 0, x, _H()-1);
+    }
+    for (uint16_t y = 0; y < _H(); y += 8) {
+        LCD_DrawLine(0, 0, _W()-1, y);
+    }
+
+    HAL_Delay(600);
+    LCD_Clear(BLACK);
+
+    /* rectangles */
+    LCD_DrawRectangle(4, 4,  _W()-5, _H()-5);
+    LCD_DrawRectangle(10, 20, _W()-11, _H()-21);
+    LCD_DrawFillRectangle(20, 30, 60, 30);
+    LCD_DrawFillRectangle(_W()-80, 70, 70, 40);
+
+    /* circles */
+    Draw_Circle(_W()/2, _H()/2, RED, 18);
+    Draw_Circle(_W()/2, _H()/2, GREEN, 12);
+
+    /* triangle: filled on the left */
+    Fill_Triangel(10, _H()-10, 60, _H()-10, 28, 90);
+
+    HAL_Delay(1000);
+}
+
+/* ------------- 5) Fill speed sweep demo ------------- */
+void run_fill_sweep(void)
+{
+    const uint16_t palette[] = {BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, WHITE, ORANGE, GRAY};
+    for (int p = 0; p < (int)(sizeof(palette)/sizeof(palette[0])); ++p) {
+        LCD_Clear(palette[p]);
+        HAL_Delay(150);
+    }
+
+    /* tiles */
+    for (uint16_t y = 0; y < _H(); y += 16) {
+        for (uint16_t x = 0; x < _W(); x += 16) {
+            uint16_t w = (x+16 <= _W()) ? 16 : (_W()-x);
+            uint16_t h = (y+16 <= _H()) ? 16 : (_H()-y);
+            LCD_FillRect(x, y, w, h, ((x/16 + y/16) & 1) ? DARKGREEN : DARKBLUE);
+        }
+    }
+    HAL_Delay(500);
+}
+
+
+

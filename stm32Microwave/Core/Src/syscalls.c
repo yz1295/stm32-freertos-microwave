@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #include <sys/times.h>
 
+#include "usart.h"
+
 
 /* Variables */
 extern int __io_putchar(int ch) __attribute__((weak));
@@ -77,17 +79,6 @@ __attribute__((weak)) int _read(int file, char *ptr, int len)
   return len;
 }
 
-__attribute__((weak)) int _write(int file, char *ptr, int len)
-{
-  (void)file;
-  int DataIdx;
-
-  for (DataIdx = 0; DataIdx < len; DataIdx++)
-  {
-    __io_putchar(*ptr++);
-  }
-  return len;
-}
 
 int _close(int file)
 {
@@ -174,3 +165,7 @@ int _execve(char *name, char **argv, char **env)
   errno = ENOMEM;
   return -1;
 }
+/*int _write(int file, char *ptr, int len) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    return len;
+}*/

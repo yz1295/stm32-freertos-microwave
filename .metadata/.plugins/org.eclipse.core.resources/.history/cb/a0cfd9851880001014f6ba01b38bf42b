@@ -1,0 +1,20 @@
+#include "lcd.h"
+#include "gui.h"
+#include "font.h"   // needed for ASCII fonts
+
+void run_lcd_hello(void) {
+    LCD_Init();
+    LCD_SetRotation(1);    // adjust 0..3 if text looks rotated
+    LCD_Backlight_On();
+
+    // Fill background
+    LCD_Clear(BLACK);
+
+    // Show text
+    LCD_ShowString(10, 20, 16, (uint8_t*)"Hello World!", 0);
+
+    // Or centered
+    Gui_StrCenter(0, 60, WHITE, BLACK, (uint8_t*)"STM32 LCD OK", 16, 0);
+}
+
+

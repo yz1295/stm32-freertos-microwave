@@ -1,0 +1,59 @@
+/**
+  ******************************************************************************
+  * @file    font.h
+  * @author  Yiran Zhang
+  * @brief   Font tables and prototypes for ASCII/Chinese characters
+  * @details Provides access to bitmap font data for displaying text
+  *          on TFT LCD modules. Supports ASCII (6x12, 8x16) and
+  *          Chinese fonts (16x16, 24x24, 32x32).
+  * @note    ASCII tables are generated at runtime from an 8x16 master font.
+  *          Call Font_Init() once at startup after LCD init.
+  ******************************************************************************/
+#ifndef __FONT_H
+#define __FONT_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* ===== Runtime-built ASCII fonts (bitmaps) =====
+ * Index 0..94 corresponds to ASCII 32..126 (' ' .. '~')
+ */
+extern unsigned char asc2_1206[95][12];  /* 6x12 ASCII (from ' ' .. '~') */
+extern unsigned char asc2_1608[95][16];  /* 8x16 ASCII (from ' ' .. '~') */
+
+/* ===== Chinese font glyph records (GB) =====
+ * Index[2] is the 2-byte character index; Msk[] is the bitmap.
+ */
+typedef struct { unsigned char Index[2]; char Msk[32];  } typFNT_GB16;  /* 16x16 */
+typedef struct { unsigned char Index[2]; char Msk[72];  } typFNT_GB24;  /* 24x24 */
+typedef struct { unsigned char Index[2]; char Msk[128]; } typFNT_GB32;  /* 32x32 */
+
+/* ===== Chinese font tables (defined in font.c) ===== */
+extern const typFNT_GB16 tfont16[];
+extern const typFNT_GB24 tfont24[];
+extern const typFNT_GB32 tfont32[];
+extern const uint32_t    tfont16_count;
+extern const uint32_t    tfont24_count;
+extern const uint32_t    tfont32_count;
+
+/* ----------------------------------------------------------------------------
+ * Public API
+ * ----------------------------------------------------------------------------*/
+void Font_Init(void);  /* Build asc2_1608 and asc2_1206 from font8x16[256][16] */
+
+/* Direct getters (used by your GUI) */
+const uint8_t* FONT_GetASCIIFont6x12(char c);  /* returns asc2_1206[c-32] or NULL */
+const uint8_t* FONT_GetASCIIFont8x16(char c);  /* returns asc2_1608[c-32] or NULL */
+
+const typFNT_GB16* FONT_GetChinese16(const uint8_t index[2]);
+const typFNT_GB24* FONT_GetChinese24(const uint8_t index[2]);
+const typFNT_GB32* FONT_GetChinese32(const uint8_t index[2]);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* __FONT_H */
+

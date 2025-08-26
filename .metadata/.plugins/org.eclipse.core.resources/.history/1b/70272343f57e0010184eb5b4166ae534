@@ -1,0 +1,156 @@
+// lcd.c (HAL version for STM32F407)
+#include "lcd.h"
+#include "main.h"
+#include <stdint.h>
+#include <string.h>
+
+extern SPI_HandleTypeDef hspi1;
+
+// === Pin mapping (match your wiring / CubeMX) ===
+// SCK  -> PA5 (SPI1_SCK)    MOSI -> PA7 (SPI1_MOSI)
+// CS   -> PB9                DC   -> PB7
+// RST  -> PB8                BL   -> PB6
+
+#define LCD_CS_GPIO_Port   GPIOB
+#define LCD_CS_Pin         GPIO_PIN_9
+#define LCD_DC_GPIO_Port   GPIOB
+#define LCD_DC_Pin         GPIO_PIN_7
+#define LCD_RST_GPIO_Port  GPIOB
+#define LCD_RST_Pin        GPIO_PIN_8
+#define LCD_BL_GPIO_Port   GPIOB
+#define LCD_BL_Pin         GPIO_PIN_6
+
+#define LCD_CS_CLR()  HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_RESET)
+#define LCD_CS_SET()  HAL_GPIO_WritePin(LCD_CS_GPIO_Port,  LCD_CS_Pin,  GPIO_PIN_SET)
+#define LCD_RS_CLR()  HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_RESET) // DC low = cmd
+#define LCD_RS_SET()  HAL_GPIO_WritePin(LCD_DC_GPIO_Port,  LCD_DC_Pin,  GPIO_PIN_SET)   // DC high = data
+#define LCD_RST_CLR() HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_RESET)
+#define LCD_RST_SET() HAL_GPIO_WritePin(LCD_RST_GPIO_Port, LCD_RST_Pin, GPIO_PIN_SET)
+#define LCD_LED(x)    HAL_GPIO_WritePin(LCD_BL_GPIO_Port,  LCD_BL_Pin,  (x)?GPIO_PIN_SET:GPIO_PIN_RESET)
+
+typedef struct {
+  uint16_t width, height;
+  uint8_t  setxcmd;
+  uint8_t  setycmd;
+  uint8_t  wramcmd;
+} _lcd_dev;
+
+_lcd_dev lcddev;
+uint16_t POINT_COLOR = 0x0000, BACK_COLOR = 0xFFFF;
+
+// --- SPI byte helpers ---
+static inline void LCD_SPI_Write8(uint8_t b) {
+  HAL_SPI_Transmit(&hspi1, &b, 1, HAL_MAX_DELAY);
+}
+static inline void LCD_SPI_Write16(uint16_t d) {
+  uint8_t buf[2] = { d >> 8, d & 0xFF };
+  HAL_SPI_Transmit(&hspi1, buf, 2, HAL_MAX_DELAY);
+}
+
+// --- Command/Data primitives (HAL) ---
+void LCD_WR_REG(uint8_t cmd) {
+  LCD_CS_CLR();
+  LCD_RS_CLR();
+  LCD_SPI_Write8(cmd);
+  LCD_CS_SET();
+}
+
+void LCD_WR_DATA(uint8_t data) {
+  LCD_CS_CLR();
+  LCD_RS_SET();
+  LCD_SPI_Write8(data);
+  LCD_CS_SET();
+}
+
+void Lcd_WriteData_16Bit(uint16_t data) {
+  LCD_CS_CLR();
+  LCD_RS_SET();
+  LCD_SPI_Write16(data);
+  LCD_CS_SET();
+}
+
+void LCD_WriteReg(uint8_t reg, uint16_t val) {
+  LCD_WR_REG(reg);
+  LCD_WR_DATA((uint8_t)val);
+}
+
+void LCD_WriteRAM_Prepare(void) { LCD_WR_REG(lcddev.wramcmd); }
+
+// --- GPIO init for control pins (you can also do this in MX_GPIO_Init) ---
+void LCD_GPIOInit(void) {
+  // If you already configured these pins in CubeMX as Output push-pull,
+  // you can omit this function entirely.
+  GPIO_InitTypeDef g = {0};
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  g.Mode = GPIO_MODE_OUTPUT_PP;
+  g.Pull = GPIO_NOPULL;
+  g.Speed = GPIO_SPEED_FREQ_HIGH;
+
+  g.Pin = LCD_CS_Pin | LCD_DC_Pin | LCD_RST_Pin | LCD_BL_Pin;
+  HAL_GPIO_Init(GPIOB, &g);
+
+  LCD_CS_SET();
+  LCD_RS_SET();
+  LCD_RST_SET();
+  LCD_LED(0);
+}
+
+void LCD_RESET(void) {
+  LCD_RST_CLR(); HAL_Delay(100);
+  LCD_RST_SET(); HAL_Delay(50);
+}
+
+// --- Orientation (unchanged logic) ---
+void LCD_direction(uint8_t direction) {
+  lcddev.setxcmd = 0x2A; // CASET
+  lcddev.setycmd = 0x2B; // RASET
+  lcddev.wramcmd = 0x2C; // RAMWR
+  switch (direction) {
+    case 0: lcddev.width = LCD_W; lcddev.height = LCD_H; LCD_WriteReg(0x36, 0xC0); break;
+    case 1: lcddev.width = LCD_H; lcddev.height = LCD_W; LCD_WriteReg(0x36, 0xA0); break;
+    case 2: lcddev.width = LCD_W; lcddev.height = LCD_H; LCD_WriteReg(0x36, 0x00); break;
+    case 3: lcddev.width = LCD_H; lcddev.height = LCD_W; LCD_WriteReg(0x36, 0x60); break;
+  }
+}
+
+void LCD_SetWindows(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye) {
+  LCD_WR_REG(lcddev.setxcmd);
+  LCD_WR_DATA(xs >> 8); LCD_WR_DATA(xs & 0xFF);
+  LCD_WR_DATA(xe >> 8); LCD_WR_DATA(xe & 0xFF);
+
+  LCD_WR_REG(lcddev.setycmd);
+  LCD_WR_DATA(ys >> 8); LCD_WR_DATA(ys & 0xFF);
+  LCD_WR_DATA(ye >> 8); LCD_WR_DATA(ye & 0xFF);
+
+  LCD_WriteRAM_Prepare();
+}
+
+void LCD_SetCursor(uint16_t x, uint16_t y) { LCD_SetWindows(x, y, x, y); }
+
+void LCD_DrawPoint(uint16_t x, uint16_t y) {
+  LCD_SetCursor(x, y);
+  Lcd_WriteData_16Bit(POINT_COLOR);
+}
+
+void LCD_Clear(uint16_t color) {
+  LCD_SetWindows(0, 0, lcddev.width - 1, lcddev.height - 1);
+  LCD_CS_CLR(); LCD_RS_SET();
+  for (uint32_t i = 0; i < (uint32_t)lcddev.width * lcddev.height; ++i) {
+    LCD_SPI_Write16(color);
+  }
+  LCD_CS_SET();
+}
+
+// --- Initialization (keep your ST7735S init sequence) ---
+void LCD_Init(void) {
+  LCD_GPIOInit();    // or rely on CubeMX GPIO init
+  LCD_RESET();
+
+  LCD_WR_REG(0x11); HAL_Delay(120);
+  // ... keep your existing ST7735S initialization writes ...
+  LCD_WR_REG(0x29); // display on
+
+  LCD_direction(USE_HORIZONTAL);
+  LCD_LED(1);
+  LCD_Clear(0xFFFF); // WHITE
+}

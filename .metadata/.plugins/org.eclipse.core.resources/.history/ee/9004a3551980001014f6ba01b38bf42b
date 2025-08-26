@@ -1,0 +1,43 @@
+#include "lcd.h"
+#include "gui.h"
+#include "font.h"   // needed for ASCII fonts
+
+void run_lcd_hello(void) {
+    LCD_Init();
+    LCD_SetRotation(1);    // adjust 0..3 if text looks rotated
+    LCD_Backlight_On();
+
+    // Fill background
+    LCD_Clear(BLACK);
+
+    // Show text
+    LCD_ShowString(10, 20, 16, (uint8_t*)"Hello World!", 0);
+
+    // Or centered
+    Gui_StrCenter(0, 60, WHITE, BLACK, (uint8_t*)"STM32 LCD OK", 16, 0);
+}
+
+void run_lcd_probe(void) {
+    LCD_Clear(BLACK);
+
+    // 1‑px border in primary colors
+    LCD_FillRect(0, 0, LCD_Width(), 1, RED);                      // top
+    LCD_FillRect(0, LCD_Height()-1, LCD_Width(), 1, GREEN);       // bottom
+    LCD_FillRect(0, 0, 1, LCD_Height(), BLUE);                    // left
+    LCD_FillRect(LCD_Width()-1, 0, 1, LCD_Height(), YELLOW);      // right
+
+    // Crosshair
+    LCD_FillRect(LCD_Width()/2, 0, 1, LCD_Height(), WHITE);
+    LCD_FillRect(0, LCD_Height()/2, LCD_Width(), 1, WHITE);
+
+    // Four corner pixels
+    LCD_DrawPixel(0, 0, WHITE);
+    LCD_DrawPixel(LCD_Width()-1, 0, WHITE);
+    LCD_DrawPixel(0, LCD_Height()-1, WHITE);
+    LCD_DrawPixel(LCD_Width()-1, LCD_Height()-1, WHITE);
+
+    // Simple fill to confirm windowing
+    LCD_FillRect(10, 10, 60, 40, MAGENTA);
+}
+
+
