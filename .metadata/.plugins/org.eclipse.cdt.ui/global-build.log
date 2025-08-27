@@ -1,7 +1,31 @@
-08:34:08 **** Build of configuration Debug for project stm32Microwave ****
+10:50:37 **** Incremental Build of configuration Debug for project stm32Microwave ****
+make -j8 all 
+arm-none-eabi-gcc "../Core/Src/gui.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I"C:/Users/z1400/Desktop/Embded COOP/stm32_microwave/stm32Microwave/BSP" -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/gui.d" -MT"Core/Src/gui.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/gui.o"
+arm-none-eabi-gcc "../Core/Src/lcd.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I"C:/Users/z1400/Desktop/Embded COOP/stm32_microwave/stm32Microwave/BSP" -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/lcd.d" -MT"Core/Src/lcd.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/lcd.o"
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I"C:/Users/z1400/Desktop/Embded COOP/stm32_microwave/stm32Microwave/BSP" -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc "../Core/Src/micro_wave_oven.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I"C:/Users/z1400/Desktop/Embded COOP/stm32_microwave/stm32Microwave/BSP" -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/micro_wave_oven.d" -MT"Core/Src/micro_wave_oven.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/micro_wave_oven.o"
+../Core/Src/gui.c:268:13: warning: '_draw_cn_block' defined but not used [-Wunused-function]
+  268 | static void _draw_cn_block(uint16_t x, uint16_t y,
+      |             ^~~~~~~~~~~~~~
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:125:3: warning: implicit declaration of function 'Font_Init' [-Wimplicit-function-declaration]
+  125 |   Font_Init();     // builds asc2_1206 / asc2_1608 from font8x16.h
+      |   ^~~~~~~~~
+arm-none-eabi-gcc -o "stm32Microwave.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\z1400\Desktop\Embded COOP\stm32_microwave\stm32Microwave\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32Microwave.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: stm32Microwave.elf
+ 
+arm-none-eabi-size  stm32Microwave.elf 
+arm-none-eabi-objdump -h -S stm32Microwave.elf  > "stm32Microwave.list"
+   text	   data	    bss	    dec	    hex	filename
+  37112	    104	  38680	  75896	  12878	stm32Microwave.elf
+Finished building: default.size.stdout
+ 
+Finished building: stm32Microwave.list
+ 
+10:50:42 **** Incremental Build of configuration Debug for project stm32Microwave ****
 make -j8 all 
 arm-none-eabi-size  stm32Microwave.elf 
    text	   data	    bss	    dec	    hex	filename
-  32648	    108	  35900	  68656	  10c30	stm32Microwave.elf
+  37112	    104	  38680	  75896	  12878	stm32Microwave.elf
 Finished building: default.size.stdout
  

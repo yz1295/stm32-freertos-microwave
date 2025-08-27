@@ -1,0 +1,8 @@
+../Core/Src/micro_wave_oven.c:22:20:servo_write_us	16	static
+../Core/Src/micro_wave_oven.c:30:24:heater_duty_from_power	16	static
+../Core/Src/micro_wave_oven.c:41:6:power_display	40	static
+../Core/Src/micro_wave_oven.c:54:6:micro_wave_init	32	static
+../Core/Src/micro_wave_oven.c:105:6:plan_cooking	8	static
+../Core/Src/micro_wave_oven.c:112:6:end_cooking	8	static
+../Core/Src/micro_wave_oven.c:119:6:stop_cooking	32	static
+../Core/Src/micro_wave_oven.c:138:6:start_cooking	40	static

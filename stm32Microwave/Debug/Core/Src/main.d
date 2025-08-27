@@ -44,7 +44,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/led.h \
  C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/lcd.h \
  C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/beep.h \
- ../Core/Inc/delay.h
+ ../Core/Inc/delay.h \
+ C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/micro_wave_oven.h \
+ C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/led.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -96,3 +98,5 @@ C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/led.h:
 C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/lcd.h:
 C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/beep.h:
 ../Core/Inc/delay.h:
+C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/micro_wave_oven.h:
+C:/Users/z1400/Desktop/Embded\ COOP/stm32_microwave/stm32Microwave/BSP/led.h:

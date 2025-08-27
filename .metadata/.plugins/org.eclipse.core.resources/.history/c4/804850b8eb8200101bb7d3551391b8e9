@@ -1,0 +1,174 @@
+#include "micro_wave_oven.h"
+#include "lcd.h"
+#include "gui.h"
+#include "delay.h"
+#include "beep.h"
+#include "FreeRTOSConfig.h"
+
+/******************************************************
+* Project : Microwave Oven Controller (STM32F407 + HAL)
+* Author  : Yiran Zhang
+* GitHub  : https://github.com/yz1295/stm32-freertos-microwave
+* Date    : 2025/03/20
+* Note    : Uses:
+*            - TIM2_CH2 (PA1) for SG90 door servo @ 50 Hz
+*            - TIM3_CH3 (PB0) heater PWM @ 1 kHz
+*            - TIM3_CH4 (PC9) turntable PWM @ 1 kHz
+*            - TIM4 Base timer (1 Hz) for countdown (Update interrupt)
+******************************************************/
+
+/* --- local helpers ------------------------------------------------------- */
+
+static inline void servo_write_us(uint16_t us)
+{
+    if (us < 900u)  us = 900u;     /* safe guard */
+    if (us > 2100u) us = 2100u;
+    __HAL_TIM_SET_COMPARE(MW_DOOR_TIM, MW_DOOR_CH, us);
+}
+
+/* Map power level to heater duty (TIM3 ARR=99 for 1 kHz) */
+static inline uint16_t heater_duty_from_power(PowerLevel pwr)
+{
+    switch (pwr) {
+        case POWER_LOW:    return 50;  /* ~50% */
+        case POWER_MEDIUM: return 70;  /* ~70% */
+        case POWER_HIGH:   return 99;  /* ~100% (ARR=99) */
+        default:           return 70;
+    }
+}
+
+/* --- UI: show power string ---------------------------------------------- */
+void power_display(MicrowaveCtrl *mw)
+{
+    const char *txt = "Medium";
+    if (mw) {
+        if      (mw->power == POWER_LOW)    txt = "Low";
+        else if (mw->power == POWER_HIGH)   txt = "High";
+    }
+    /* Clear small area and print */
+    LCD_Fill(48, 60, 128, 75, WHITE);
+    Show_Str(6*8, 60, RED, WHITE, (uint8_t*)txt, 16, 0);
+}
+
+/* --- Initialization ------------------------------------------------------ */
+void micro_wave_init(MicrowaveCtrl *mw)
+{
+    /* ----- Screen setup ----- */
+    LCD_Clear(WHITE);                              /* full-screen clear */
+
+    /* ----- Defaults ----- */
+    mw->state        = STATE_STANDBY;
+    mw->cooking_time = 0;
+    mw->power        = POWER_MEDIUM;
+    mw->heating      = HEATING_OFF;
+    mw->door         = DOOR_OPEN;                  /* default door open */
+
+    /* Panel LED on */
+    led_on(&led1);
+
+    /* ----- Splash ----- */
+    Show_Str(0, 20, BLUE, WHITE, (uint8_t*)"Microwave Demo V1.1", 16, 0);
+    delay_ms(1000);
+    LCD_FillRect(0, 0, 128, 35, WHITE);           /* clear the top strip after splash */
+
+    /* ----- Static labels & initial values ----- */
+    Show_Str(0, 40, BLUE, WHITE, (uint8_t*)"Time:    s", 16, 0);
+    LCD_ShowNum(5*8, 40, mw->cooking_time, 3, 16);/* shows 000..999 */
+    Show_Str(0, 60, BLUE, WHITE, (uint8_t*)"Power:0000", 16, 0);
+    power_display(mw);                             /* your function updates power text */
+
+    /* ----- Start PWM outputs (idempotent) ----- */
+    HAL_TIM_PWM_Start(MW_DOOR_TIM,      MW_DOOR_CH);      /* servo */
+    HAL_TIM_PWM_Start(MW_HEATER_TIM,    MW_HEATER_CH);    /* heater */
+    HAL_TIM_PWM_Start(MW_TURNTABLE_TIM, MW_TURNTABLE_CH); /* turntable */
+
+    /* Neutral servo, ensure outputs off */
+    servo_write_us(DOOR_NEUTRAL_US);
+    __HAL_TIM_SET_COMPARE(MW_HEATER_TIM,    MW_HEATER_CH,    0);
+    __HAL_TIM_SET_COMPARE(MW_TURNTABLE_TIM, MW_TURNTABLE_CH, 0);
+
+    /* Ensure countdown timer stopped */
+    HAL_TIM_Base_Stop_IT(&htim4);
+    __HAL_TIM_DISABLE_IT(&htim4, TIM_IT_UPDATE);
+    __HAL_TIM_CLEAR_IT(&htim4,   TIM_IT_UPDATE);
+
+}
+
+/* Prepare to cook: close door + panel LED off */
+void plan_cooking(void)
+{
+    servo_write_us(DOOR_CLOSE_US);
+    led_off(&led1);
+}
+
+/* Done: open door + panel LED on */
+void end_cooking(void)
+{
+    servo_write_us(DOOR_OPEN_US);
+    led_on(&led1);
+}
+
+/* Stop heating/rotation + UI + stop countdown */
+void stop_cooking(MicrowaveCtrl *mw)
+{
+    mw->heating = HEATING_OFF;
+
+    /* Heater & turntable off */
+    __HAL_TIM_SET_COMPARE(MW_HEATER_TIM,    MW_HEATER_CH,    0);
+    __HAL_TIM_SET_COMPARE(MW_TURNTABLE_TIM, MW_TURNTABLE_CH, 0);
+
+    /* Stop 1 Hz countdown timer */
+    HAL_TIM_Base_Stop_IT(&htim4);
+    __HAL_TIM_DISABLE_IT(&htim4, TIM_IT_UPDATE);
+    __HAL_TIM_CLEAR_IT(&htim4,   TIM_IT_UPDATE);
+
+    /* UI */
+    LCD_Fill(0, 0, 128, 35, WHITE);
+    Show_Str(0, 20, BLUE, WHITE, (uint8_t*)"Heating stopped", 16, 0);
+}
+
+/* Start heating/rotation + UI + start countdown */
+void start_cooking(MicrowaveCtrl *mw)
+{
+    if ((mw->cooking_time > 0) && (mw->door == DOOR_CLOSED)) {
+
+        mw->heating = HEATING_ON;
+
+        /* Heater duty (TIM3_CH3 @ 1 kHz) */
+        uint16_t duty = heater_duty_from_power(mw->power);
+        __HAL_TIM_SET_COMPARE(MW_HEATER_TIM, MW_HEATER_CH, duty);
+
+        /* Turntable slow (~4% duty on TIM3_CH4 @ 1 kHz) */
+        __HAL_TIM_SET_COMPARE(MW_TURNTABLE_TIM, MW_TURNTABLE_CH, 4);
+
+        /* UI */
+        LCD_Fill(0, 0, 128, 35, WHITE);
+        Show_Str(0, 20, BLUE, WHITE, (uint8_t*)"Heating", 16, 0);
+
+        /* Start 1 Hz countdown (TIM4) */
+        __HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
+        __HAL_TIM_ENABLE_IT(&htim4, TIM_IT_UPDATE);
+        HAL_TIM_Base_Start_IT(&htim4);
+    }
+}
+
+/* ===== Tickless Idle hooks (optional) ==================================== */
+#if configUSE_TICKLESS_IDLE
+void PRE_SLEEP_PROCESSING(uint32_t ulExpectedIdleTime)
+{
+    (void)ulExpectedIdleTime;
+    /* Gate off some GPIO clocks as a demo (AHB1 on F4) */
+    __HAL_RCC_GPIOA_CLK_DISABLE();
+    __HAL_RCC_GPIOB_CLK_DISABLE();
+    __HAL_RCC_GPIOC_CLK_DISABLE();
+}
+
+void POST_SLEEP_PROCESSING(uint32_t ulExpectedIdleTime)
+{
+    (void)ulExpectedIdleTime;
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+}
+#endif
+

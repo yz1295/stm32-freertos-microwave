@@ -32,6 +32,7 @@
 #include "beep.h"
 #include "delay.h"
 #include "stm32f4xx_hal.h"
+#include "micro_wave_oven.h"
 
 
 /* USER CODE END Includes */
@@ -60,8 +61,9 @@ Beep_HandleTypeDef hbeep;
 //
 led_d LED_GREEN;   // PD12
 led_d LED_ORANGE;  // PD13
-led_d LED_RED;     // PD14
+led_d led1;     // PD14//red
 led_d LED_BLUE;    // PD15
+
 
 /* USER CODE END PV */
 
@@ -110,54 +112,34 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   MX_TIM4_Init();
+  MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 4, 0);  // override it, make DMA=4
+  //HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 4, 0);  // override it, make DMA=4
 
-  // --- test LCD BSP ---
-
-  //USART2 test
-  printf("Hello from STM32F407!\r\n");
-  printf("System running at %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
-
-
-
-  //TFT display test
-  /*LCD_Init();
-  LCD_SetRotation(0);
-  LCD_Backlight_On();
+  LCD_Init();
+  //LCD_SetRotation(0);
+  //LCD_Backlight_On();
 
   Font_Init();     // builds asc2_1206 / asc2_1608 from font8x16.h
 
-  run_lcd_probe();
-  HAL_Delay(1500);
-  run_text_ascii();
-  HAL_Delay(1500);
-  run_text_cn();
-  Beep_Init(&hbeep, GPIOB, GPIO_PIN_15, GPIO_PIN_SET); // active-high
-  Beep_Beep(&hbeep, 3, 200, 200); // three short beeps
+  //run_lcd_probe();
+  //HAL_Delay(1500);
+  //run_text_ascii();
+  //HAL_Delay(1500);
 
-  //buzzer test
-  Beep_On(&hbeep);
-  delay_ms(500);
-  Beep_Off(&hbeep);
-  delay_ms(500);8/
 
-  //led test
-  /* Init four on-board LEDs */
-      LED_Init(&LED_GREEN,  GPIOD, GPIO_PIN_12);
-      LED_Init(&LED_ORANGE, GPIOD, GPIO_PIN_13);
-      LED_Init(&LED_RED,    GPIOD, GPIO_PIN_14);
-      LED_Init(&LED_BLUE,   GPIOD, GPIO_PIN_15);
+  MicrowaveCtrl mw1;
+  micro_wave_init(&mw1);
 
-      /* Simple test */
-      led_on(&LED_GREEN);
-      HAL_Delay(2000);
-      led_on(&LED_ORANGE);
-      HAL_Delay(2000);
-      led_toggle(&LED_BLUE);
-      HAL_Delay(2000);
-      led_toggle(&LED_RED);
+
+
+
+
+
+
+
 
 
 
@@ -182,6 +164,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }
